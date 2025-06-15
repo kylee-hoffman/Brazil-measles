@@ -17,8 +17,8 @@ for (state in states) {
                           uf = states, information_system = "SIM-DO")
     
     # The file is saved locally as "data.csv" on the notebook
-    local_file_path <- "data.csv"
-    write.csv(data, local_file_path)
+    #local_file_path <- "data.csv"
+    #write.csv(data, local_file_path)
   }
 }
 
@@ -39,22 +39,17 @@ for (state in states) {
 # trying another source
 library(datazoom.amazonia)
 
-# download raw data for the year 2010 in the state of AM.
-data_new <- load_datasus(
-  dataset = "datasus_sim_do",
-  time_period = 2010,
-  states = "AM",
-  raw_data = TRUE,
-  language = "pt"
-)
-
 # download treated data with the number of deaths by cause in AM and PA.
-data <- load_datasus(
+data_simdo <- load_datasus(
   dataset = "datasus_sim_do",
-  time_period = 2010,
-  states = c("AM", "PA"),
-  raw_data = FALSE
-)
+  time_period = 1996:2021,
+  states = "all",
+  raw_data = F,
+  language = "eng",
+  keep_all = T)
+
+f = data_simdo_2020 %>% 
+  select(c("name_muni", "code_muni", "codmunres"))
 
 # download treated data with the number of deaths by cause in AM and PA
 # keeping all individual variables.
