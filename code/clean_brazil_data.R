@@ -46,7 +46,7 @@ read_clean_case_data <- function(path, drop_cols = NULL) {
 }
 
 measles_cases <- bind_rows(
-  read_clean_case_data("~/Brazil-measles/data/case_data/measles_cases_2001_2006.csv",
+  read_clean_case_data("~/Brazil-measles/data/raw/case_data/measles_cases_2001_2006.csv",
                        drop_cols = "Total"),
   read_clean_case_data("~/Brazil-measles/data/case_data/measles_cases_2007_2024.csv",
                        drop_cols = c("X.1975", "X1979", "X1981", "X1985", "X1989", "X1990", 
@@ -66,7 +66,7 @@ measles_cases <- bind_rows(
 #     make sure to select display rows with 0 data
  
  measles_deaths <- 
-   read.delim("~/Brazil-measles/data/mortality_data/measles_mortality.csv",
+   read.delim("~/Brazil-measles/data/raw/mortality_data/measles_mortality.csv",
               sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5596) %>%  # remove notes from top and bottom and total row at bottom
     select(-Total) %>%
     rename(muni = Município) %>% 
@@ -93,7 +93,7 @@ measles_cases <- bind_rows(
  #     make sure to select display rows with 0 data
  
 mumps_deaths <- 
-   read.delim("~/Brazil-measles/data/mortality_data/mumps_mortality.csv",
+   read.delim("~/Brazil-measles/data/raw/mortality_data/mumps_mortality.csv",
               sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5596) %>%  # remove notes from top and bottom and total row at bottom
    select(-Total) %>%
    rename(muni = Município) %>% 
@@ -121,7 +121,7 @@ mumps_deaths <-
 #     make sure to select display rows with 0 data
 
 whooping_deaths <- 
-  read.delim("~/Brazil-measles/data/mortality_data/whooping_cough_mortality.csv",
+  read.delim("~/Brazil-measles/data/raw/mortality_data/whooping_cough_mortality.csv",
              sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5596) %>%  # remove notes from top and bottom and total row at bottom
   select(-Total) %>%
   rename(muni = Município) %>% 
@@ -152,7 +152,7 @@ whooping_deaths <-
 
 # half of minimum wage is very close to Brazil's poverty line of ~3.66/hr, so good estimate for % in poverty
 
-poverty <- read.csv("~/Brazil-measles/data/poverty_data.csv") %>% 
+poverty <- read.csv("~/Brazil-measles/data/raw/poverty_data.csv") %>% 
   filter(municipality != "Total") %>%
   rename(pct_low_inc_1991 = X1991,
          pct_low_inc_2000 = X2000,
@@ -178,9 +178,9 @@ read_clean_educ <- function(file, rename_map) {
 
 # this wacky setup reduces some clutter
 educ <- tibble(
-  file = c("~/Brazil-measles/data/educ_data/educ_1991.csv",
-           "~/Brazil-measles/data/educ_data/educ_2000.csv",
-           "~/Brazil-measles/data/educ_data/educ_2010.csv"),
+  file = c("~/Brazil-measles/data/raw/educ_data/educ_1991.csv",
+           "~/Brazil-measles/data/raw/educ_data/educ_2000.csv",
+           "~/Brazil-measles/data/raw/educ_data/educ_2010.csv"),
   rename_map = list(c(educ_pct_below_1_yr_1991 = "Menos.de.1.ano.de.estudo", # less than one year of schooling
                       educ_pct_1_3_yrs_1991 = "X1.a.3.anos.de.estudo",       # 1 to 3 years of study
                       educ_pct_4_7_yrs_1991 = "X4.a.7.anos.de.estudo",       # 4 to 7 years of study
@@ -206,7 +206,7 @@ educ <- tibble(
 # dash: absolute 0
 # 0: 0 from rounding
 # ...: NA
-urban <- read.csv("~/Brazil-measles/data/urban_pop.csv", skip = 3, nrow = 11131) %>%  # remove notes from top and bottom and total row at bottom
+urban <- read.csv("~/Brazil-measles/data/raw/urban_pop.csv", skip = 3, nrow = 11131) %>%  # remove notes from top and bottom and total row at bottom
   select(-Município) %>%
   rename(muni_code = Cód.,
          status = Situação.do.domicílio) %>% 
