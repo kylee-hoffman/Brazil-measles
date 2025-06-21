@@ -1,4 +1,8 @@
-data/
-data.csv
+data/case_data
+data/educ_data
+data/mortality_data
+data/microdata
+data/poverty_data.csv
+data/vax_data.Rdata
 scratch_paper.R
 .DS_Store
