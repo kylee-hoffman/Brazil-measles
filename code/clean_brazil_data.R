@@ -199,10 +199,25 @@ educ <- tibble(
   reduce(full_join, by = "muni_code_6")
 
 
-# for deaths, NA before 2023 can be changed to 0, but needs to still be NA for 2024
-# for cases, NA after 2007 can be changed to 0.
-# those NAs only exist because I did not check the box for "display zero lines" on DATASUS portal,
-# so the 0 values were all left off, but those year/muni combos were added in from the SES data
+
+
+# urban pop
+# source: https://sidra.ibge.gov.br/tabela/202
+# dash: absolute 0
+# 0: 0 from rounding
+# ...: NA
+urban <- read.csv("~/Brazil-measles/data/urban_pop.csv", skip = 3, nrow = 11131) %>%  # remove notes from top and bottom and total row at bottom
+  select(-Município) %>%
+  rename(muni_code = Cód.,
+         status = Situação.do.domicílio) %>% 
+  filter(!str_detect(X1991, "Total") & status == "Urbana") %>% 
+  rename(pct_urban_1991 = X1991,
+         pct_urban_2000 = X2000,
+         pct_urban_2010 = X2010) %>% 
+  select(-status) %>% 
+  mutate(across(everything(), ~as.numeric(.))) # "..." is NA
+
+
 
 
 # Simon's data:
@@ -270,17 +285,18 @@ data_clean <- merge(mortality, measles_cases, by = c("muni_code_6", "year"), all
   left_join(geog, by = "muni_code_6") %>% 
   left_join(poverty, by = "muni_code_6") %>% 
   left_join(educ, by = "muni_code_6") %>% 
+  left_join(urban, by = "muni_code") %>% 
   rename(population = POPULATION,
          CDR = CMR,
          sanitation = SANITATION,
          CBR = BIRTH_RATE) %>% 
-  select(muni_code, muni_name_clean, year, population, measles_cases, measles_deaths, mumps_deaths, 
-         whooping_deaths, MMR2_coverage, MMR2_goal, DTP_coverage, DTP_goal, pct_low_inc_1991, pct_low_inc_2000, 
-         pct_low_inc_2010, educ_pct_8_yrs_1991, educ_pct_8_yrs_2000, pct_complete_educ_2010, CBR, 
-         IMR, CDR, MHDI, GINI, GDP_PC, sanitation, muni_code_6, muni_name, state_name, state_code, region)
+  select(muni_code, muni_name_clean, year, MMR2_coverage, MMR2_goal, DTP_coverage, DTP_goal, 
+         measles_cases, measles_deaths, mumps_deaths, whooping_deaths,
+         pct_urban_1991, pct_urban_2000, pct_urban_2010,
+         pct_low_inc_1991, pct_low_inc_2000, pct_low_inc_2010, 
+         educ_pct_8_yrs_1991, educ_pct_8_yrs_2000, pct_complete_educ_2010, 
+         population, CBR, IMR, CDR, MHDI, GINI, GDP_PC, sanitation, 
+         muni_code_6, muni_name, state_name, state_code, region)
 
 save(data_clean, file = "~/Brazil-measles/data/clean_brazil_data.RData")
-
-
-
 

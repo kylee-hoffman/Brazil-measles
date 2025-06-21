@@ -1,23 +1,38 @@
 Data dictionary for cleaned dataset
 
+Municipality/year identification:
 "muni_code": 7 digit municipality code (numeric)
 "muni_name_clean": cleaned all uppercase municipality (character)
 "year": year (numeric)
-"population": popualtion of municipality; 1996-2021 (numeric)
-"measles_cases": number of measles cases for residents of a municipality; 2001-2023 (numeric)
-"measles_deaths": number of measles deaths for residents of a municipality; 1996-2023 (numeric)
-"mumps_deaths": number of mumps deaths for residents of a municipality; 1996-2023 (numeric)
-"whooping_deaths": number of whooping cough deaths for residents of a municipality; 1996-2023 (numeric)
+
+Vaccination:
 "MMR2_coverage": MMR vaccine second dose coverage; 1996-2021 (numeric)
 "MMR2_goal": Binary: 1 if MMR second dose coverage equal to or greater than goal of 95%, 0 otherwise; 1996-2021 (numeric)
 "DTP_coverage": DTP vaccine coverage; 1996-2021 (numeric)
 "DTP_goal": Binary: 1 if DTP coverage equal to or greater than goal of 95%, 0 otherwise; 1996-2021 (numeric)
+
+Measles cases:
+"measles_cases": number of measles cases for residents of a municipality; 2001-2023 (numeric)
+
+Infectious disease mortality (in progress):
+"measles_deaths": number of measles deaths for residents of a municipality; 1996-2023 (numeric)
+"mumps_deaths": number of mumps deaths for residents of a municipality; 1996-2023 (numeric)
+"whooping_deaths": number of whooping cough deaths for residents of a municipality; 1996-2023 (numeric)
+
+Demographic variables:
+"pct_urban_1991": Percent of municipality that lives in an urban area in 1991 (numeric)
+"pct_urban_2000": Percent of municipality that lives in an urban area in 2000 (numeric)
+"pct_urban_2010": Percent of municipality that lives in an urban area in 2010 (numeric)
+
 "pct_low_inc_1991": percent of municipality with a monthly per capita household income of up to half the minimum wage in 1991 (numeric)
 "pct_low_inc_2000": percent of municipality with a monthly per capita household income of up to half the minimum wage in 2000 (numeric)
 "pct_low_inc_2010": percent of municipality with a monthly per capita household income of up to half the minimum wage in 2010 (numeric)
+
 "educ_pct_8_yrs_1991": percent of municipality that completed 8 years and more of study in 1991 (numeric)
 "educ_pct_8_yrs_2000": percent of municipality that completed 8 years and more of study in 2000 (numeric)
 "pct_complete_educ_2010": percent of municipality that completed 2nd cycle of basic education or more in 2010 (numeric)
+
+"population": popualtion of municipality; 1996-2021 (numeric)
 "CBR": Live births per 1,000 population; 1996-2021 (numeric)
 "IMR": infant mortality rate; number of deaths per 1,000 live births of children under 1 year old; 1996-2021 (numeric)
 "CDR": crude death rate; deaths per 1,000 population; 1996-2021 (numeric)
@@ -25,6 +40,8 @@ Data dictionary for cleaned dataset
 "GINI": Value of Gini coefficient; 1996-2021 (numeric)
 "GDP_PC": per capita Gross Domestic Product, current price (BRL 1,00); 1996-2021 (numeric)
 "sanitation": Percent of people in households with an inadequate water supply and sanitation; 1996-2021 (numeric)
+
+# Geographic variables:
 "muni_code_6": 6-digit municipality code (numeric)
 "muni_name": municipality name (character)
 "state_name": state name of municipality (character)
