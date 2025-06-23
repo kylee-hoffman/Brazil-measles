@@ -135,6 +135,20 @@ whooping_deaths <-
          muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
   select(c("muni_code_6", "year", "whooping_deaths")) 
 
+# merge all mortality
+# when downloading data, years with zero deaths are excluding as columns
+# All mortality data is 1996-2023, so change NAs here to 0
+mortality <- merge(measles_deaths, mumps_deaths, 
+                   by = c("muni_code_6", "year"), all = TRUE) %>% 
+  merge(whooping_deaths, by = c("muni_code_6", "year"), all = TRUE) %>% 
+  mutate(across(c(measles_deaths, mumps_deaths, whooping_deaths), ~replace_na(., 0)))
+
+# check duplicates
+mortality %>%
+  group_by(muni_code_6, year) %>%
+  filter(n() > 1)
+
+rm(measles_deaths, mumps_deaths, whooping_deaths)
 
 
 # SES - poverty
@@ -223,7 +237,7 @@ urban <- read.csv("~/Brazil-measles/data/raw/urban_pop.csv", skip = 3, nrow = 11
 # 2023 shapefile
 # https://www.ibge.gov.br/en/geosciences/territorial-organization/territorial-meshes/18890-municipal-mesh.html?edicao=24069&t=downloads
 
-geom <- read_sf('~/Brazil-measles/data/BR_Municipios_2023 2/BR_Municipios_2023.shp') %>% 
+geom <- read_sf('~/Brazil-measles/data/brazil_muni_sf/BR_Municipios_2023.shp') %>% 
   rename(muni_code = CD_MUN,
          muni_name = NM_MUN, 
          state_name = NM_UF,
@@ -245,13 +259,24 @@ geom <- read_sf('~/Brazil-measles/data/BR_Municipios_2023 2/BR_Municipios_2023.s
   merge(urban, by = "muni_code_6", all = TRUE) %>% 
   data.frame()
 
+# check duplicates
+geom %>%
+  group_by(muni_code_6) %>%
+  filter(n() > 1)
+
 rm(poverty, educ, urban)
 
 # vaccination
 
 # Simon's data:
 load("~/Brazil-measles/data/vax_data.RData")
-vax_demog <- merged_data
+
+vax_demog <- merged_data %>% 
+  select(-c(lon_round.x, lat_round.x, muni_id, muni_id_6, muni_nm,
+  muni_nm_clean, uf_nm, uf_sigla, uf_id, regiao_nm, tse_id, rf_id, bcb_id, existia_1991, 
+  existia_2000, existia_2010, lon.y, lat.y, capital, lon_round.y, lat_round.y)) %>% 
+  distinct()
+
 rm(merged_data)
 
 mmr_vax <- vax_demog %>% 
@@ -262,6 +287,11 @@ mmr_vax <- vax_demog %>%
          MMR2_goal = FL_GOAL,
          year = YEAR) %>% 
   select(-INDICATOR)
+
+# check duplicates
+mmr_vax %>%
+  group_by(muni_code_6, year) %>%
+  filter(n() > 1)
   
 dtp_vax_demog <- vax_demog %>% 
     select(LOCAL_CODE, YEAR, INDICATOR, PC_COVERAGE, FL_GOAL,
@@ -273,7 +303,17 @@ dtp_vax_demog <- vax_demog %>%
          year = YEAR) %>% 
     select(-INDICATOR)
 
+# check duplicates
+dtp_vax_demog %>%
+  group_by(muni_code_6, year) %>%
+  filter(n() > 1)
+
 vax_data <- merge(dtp_vax_demog, mmr_vax, by = c("year", "muni_code_6"), all = TRUE)
+
+# check duplicates
+vax_data %>%
+  group_by(muni_code_6, year) %>%
+  filter(n() > 1)
 
 rm(vax_demog, dtp_vax_demog, mmr_vax)
 
@@ -283,9 +323,8 @@ mmr_2022 <- read.delim("~/Brazil-measles/data/raw/mmr2_coverage_2022.csv",
                        sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   rename(MMR2_coverage = X2022) %>% 
   filter(Município != "Total") %>% 
-  mutate(muni_code_6 = as.numeric(substr(Município, 1, 6)),
-         year = 2022) %>% 
-  select(muni_code_6, year, MMR2_coverage)
+  mutate(muni_code_6 = as.numeric(substr(Município, 1, 6))) %>% 
+  select(muni_code_6, MMR2_coverage)
 
 
 dtp_2022 <- read.delim("~/Brazil-measles/data/raw/DTP_coverage_2022.csv",
@@ -295,6 +334,8 @@ dtp_2022 <- read.delim("~/Brazil-measles/data/raw/DTP_coverage_2022.csv",
   mutate(muni_code_6 = as.numeric(substr(Município, 1, 6)),
          year = 2022) %>% 
   select(muni_code_6, year, DTP_coverage)
+
+vax_2022 <- merge(mmr_2022, dtp_2022, by = "muni_code_6", all = TRUE)
 
 # from https://infoms.saude.gov.br/extensions/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA.html#
 vax_2023 <- read.csv("~/Brazil-measles/data/raw/vaccines_2023.csv") %>% 
@@ -309,24 +350,18 @@ vax_2023 <- read.csv("~/Brazil-measles/data/raw/vaccines_2023.csv") %>%
 
 # combine all vaccine data
 vax_data <- vax_data %>% 
-  bind_rows(mmr_2022, dtp_2022, vax_2023)
+  bind_rows(vax_2022, vax_2023)
 
-rm(mmr_2022, dtp_2022, vax_2023)
+# check duplicates
+vax_data %>%
+  group_by(muni_code_6, year) %>%
+  filter(n() > 1)
+
+rm(mmr_2022, dtp_2022, vax_2022, vax_2023)
+
+
 
 # merge all data
-
-# mortality
-# when downloading data, years with zero deaths are excluding as columns
-# All mortality data is 1996-2023, so change NAs here to 0
-mortality <- merge(measles_deaths, mumps_deaths, 
-              by = c("muni_code_6", "year"), all = TRUE) %>% 
-  merge(whooping_deaths, by = c("muni_code_6", "year"), all = TRUE) %>% 
-  mutate(across(c(measles_deaths, mumps_deaths, whooping_deaths), ~replace_na(., 0)))
-
-rm(measles_deaths, mumps_deaths, whooping_deaths)
-
-
-# everything else
 data_clean <- merge(mortality, measles_cases, by = c("muni_code_6", "year"), all = TRUE) %>% 
   merge(vax_data, by = c("muni_code_6", "year"), all = TRUE) %>% 
   left_join(geom, by = "muni_code_6") %>%
@@ -342,20 +377,9 @@ data_clean <- merge(mortality, measles_cases, by = c("muni_code_6", "year"), all
          population, CBR, IMR, CDR, MHDI, GINI, GDP_PC, sanitation, 
          muni_code_6, muni_name, state_name, state_code, region)
 
+# check duplicates
+data_clean %>%
+  group_by(muni_code_6, year) %>%
+  filter(n() > 1)
+
 save(data_clean, file = "~/Brazil-measles/data/clean_brazil_data.RData")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
