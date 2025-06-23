@@ -1,14 +1,13 @@
 Data dictionary for cleaned dataset
 
-Municipality/year identification:
+
 "muni_code": 7 digit municipality code (numeric)
-"muni_name_clean": cleaned all uppercase municipality (character)
 "year": year (numeric)
 
 Vaccination:
-"MMR2_coverage": MMR vaccine second dose coverage; 1996-2021 (numeric)
+"MMR2_coverage": MMR vaccine second dose coverage; 1996-2023 (numeric)
 "MMR2_goal": Binary: 1 if MMR second dose coverage equal to or greater than goal of 95%, 0 otherwise; 1996-2021 (numeric)
-"DTP_coverage": DTP vaccine coverage; 1996-2021 (numeric)
+"DTP_coverage": DTP vaccine coverage; 1996-2023 (numeric)
 "DTP_goal": Binary: 1 if DTP coverage equal to or greater than goal of 95%, 0 otherwise; 1996-2021 (numeric)
 
 Measles cases:
