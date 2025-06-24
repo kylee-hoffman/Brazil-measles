@@ -1,5 +1,6 @@
 data/raw
 data/brazil_muni_sf
+data/geom
 data/vax_data.Rdata
 scratch_paper.R
 .DS_Store

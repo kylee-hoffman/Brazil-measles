@@ -78,7 +78,7 @@ measles_cases <- bind_rows(
            measles_deaths = as.numeric(case_when(
              measles_deaths == "-" ~ "0", # dash indicates 0 deaths
              TRUE ~ measles_deaths)),
-           muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
+           muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) #%>% 
     select(c("muni_code_6", "year", "measles_deaths"))
 
  # mumps mortality
@@ -237,12 +237,12 @@ urban <- read.csv("~/Brazil-measles/data/raw/urban_pop.csv", skip = 3, nrow = 11
 # 2023 shapefile
 # https://www.ibge.gov.br/en/geosciences/territorial-organization/territorial-meshes/18890-municipal-mesh.html?edicao=24069&t=downloads
 
-geom <- read_sf('~/Brazil-measles/data/brazil_muni_sf/BR_Municipios_2023.shp') %>% 
+geom <- read_sf('~/Brazil-measles/data/brazil_muni_sf/BR_Municipios_2024.shp') %>% 
   rename(muni_code = CD_MUN,
          muni_name = NM_MUN, 
          state_name = NM_UF,
          state_code = CD_UF,
-         region = NM_REGIAO) %>% 
+         region = NM_REGIA) %>% 
   mutate(region = recode(region,
                          "Norte" = "north",
                          "Nordeste" = "northeast",
@@ -379,7 +379,34 @@ data_clean <- merge(mortality, measles_cases, by = c("muni_code_6", "year"), all
 
 # check duplicates
 data_clean %>%
-  group_by(muni_code_6, year) %>%
+  group_by(muni_code, year) %>%
   filter(n() > 1)
 
+# check muni codes...
+which(!data_clean$muni_code %in% geom$muni_code)
+
 save(data_clean, file = "~/Brazil-measles/data/clean_brazil_data.RData")
+
+
+#### shapefile for maps
+
+#load("~/Brazil-measles/data/clean_brazil_data.RData")
+
+wide_sf <- data_clean %>% 
+  rename(cases = measles_cases,
+         deaths = measles_deaths,
+         covg = MMR2_coverage)
+  select(muni_code, year, covg, cases, deaths) %>% 
+  pivot_wider(names_from = year,
+              values_from = c(covg, deaths, cases),
+              names_sep = "_") %>% 
+  select(-c(covg_1996, covg_1997, covg_1998, covg_1999)) %>% 
+  merge(geom, by = "muni_code")
+
+st_write(wide_sf, "~/Brazil-measles/data/geom/geom_clean.shp")
+
+
+
+
+
+
