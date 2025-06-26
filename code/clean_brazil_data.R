@@ -31,7 +31,7 @@ library(janitor)
 
 read_clean_case_data <- function(path, drop_cols = NULL) {
   read.delim(path, sep = ";", fileEncoding = "Latin1", skip = 3, nrow = 5597) %>%  # remove notes from top and bottom and total row at bottom
-    select(-any_of(drop_cols)) %>%
+    dplyr::select(-any_of(drop_cols)) %>%
     rename(muni = Município.de.residência) %>% 
     filter(!str_detect(muni, "IGNORADO")) %>% 
     pivot_longer(cols = -"muni",
@@ -42,7 +42,7 @@ read_clean_case_data <- function(path, drop_cols = NULL) {
              measles_cases == "-" ~ "0", # dash indicates 0 deaths
              TRUE ~ measles_cases)),
            muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
-    select(c("muni_code_6", "year", "measles_cases"))
+    dplyr::select(c("muni_code_6", "year", "measles_cases"))
 }
 
 measles_cases <- bind_rows(
@@ -66,7 +66,7 @@ measles_cases <- bind_rows(
  measles_deaths <- 
    read.delim("~/Brazil-measles/data/raw/mortality_data/measles_mortality.csv",
               sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5597) %>%  # remove notes from top and bottom and total row at bottom
-    select(-Total) %>%
+   dplyr::select(-Total) %>%
     rename(muni = Município) %>% 
     filter(!str_detect(muni, "IGNORADO")) %>% 
     pivot_longer(
@@ -78,7 +78,7 @@ measles_cases <- bind_rows(
              measles_deaths == "-" ~ "0", # dash indicates 0 deaths
              TRUE ~ measles_deaths)),
            muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
-    select(c("muni_code_6", "year", "measles_deaths"))
+   dplyr::select(c("muni_code_6", "year", "measles_deaths"))
 
  # mumps mortality
  # "Deaths per Residence by Year of Death according to Municipality - ICD-10 Category: B26 Mumps"
@@ -92,7 +92,7 @@ measles_cases <- bind_rows(
 mumps_deaths <- 
    read.delim("~/Brazil-measles/data/raw/mortality_data/mumps_mortality.csv",
               sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5597) %>%  # remove notes from top and bottom and total row at bottom
-   select(-Total) %>%
+  dplyr::select(-Total) %>%
    rename(muni = Município) %>% 
    filter(!str_detect(muni, "IGNORADO")) %>% 
    pivot_longer(
@@ -104,7 +104,7 @@ mumps_deaths <-
             mumps_deaths == "-" ~ "0", # dash indicates 0 deaths
             TRUE ~ mumps_deaths)),
           muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
-   select(c("muni_code_6", "year", "mumps_deaths")) 
+  dplyr::select(c("muni_code_6", "year", "mumps_deaths")) 
  
 
 
@@ -120,7 +120,7 @@ mumps_deaths <-
 whooping_deaths <- 
   read.delim("~/Brazil-measles/data/raw/mortality_data/whooping_cough_mortality.csv",
              sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5597) %>%  # remove notes from top and bottom and total row at bottom
-  select(-Total) %>%
+  dplyr::select(-Total) %>%
   rename(muni = Município) %>% 
   filter(!str_detect(muni, "IGNORADO")) %>% 
   pivot_longer(
@@ -132,7 +132,7 @@ whooping_deaths <-
            whooping_deaths == "-" ~ "0", # dash indicates 0 deaths
            TRUE ~ whooping_deaths)),
          muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
-  select(c("muni_code_6", "year", "whooping_deaths")) 
+  dplyr::select(c("muni_code_6", "year", "whooping_deaths")) 
 
 # merge all mortality
 # when downloading data, years with zero deaths are excluding as columns
@@ -149,6 +149,92 @@ mortality %>%
 
 rm(measles_deaths, mumps_deaths, whooping_deaths)
 
+
+
+# population
+pop <- read.delim("~/Brazil-measles/data/raw/ibge_muni_pop.csv",
+                  sep = ";", fileEncoding = "Latin1", skip = 3, nrow = 5597) %>% 
+  filter(!str_detect(Município, "IGNORADO")) %>% 
+  pivot_longer(cols = -"Município",
+               names_to = "year",
+               values_to = "population") %>% 
+  mutate(year = as.numeric(substring(year, 2)),
+         population = as.numeric(case_when(
+           population == "-" ~ "0", # dash indicates 0 deaths
+           TRUE ~ population)),
+         muni_code_6 = as.numeric(str_split_fixed(Município, ' ', 2)[, 1])) %>% 
+  dplyr::select(c("muni_code_6", "year", "population"))
+
+
+
+
+# healthcare
+
+# UBS establishments
+# CNES - Establishments by Type
+# Quantity per Year/month compet. according to Municipality
+# Type of Establishment: HEALTH CENTER/BASIC UNIT
+# http://tabnet.datasus.gov.br/cgi/deftohtm.exe?cnes/cnv/estabbr.def
+ubs <- read.delim("~/Brazil-measles/data/raw/cnes_UBS_count.csv",
+                  sep = ";", dec = ",", fileEncoding = "Latin1",
+                  skip = 4, nrow = 5597) %>% 
+  filter(!str_detect(Município, "IGNORADO")) %>% 
+  pivot_longer(cols = -"Município",
+               names_to = "year",
+               values_to = "UBS") %>% 
+  mutate(year = as.numeric(substring(year, 2, 5)),
+         UBS = as.numeric(case_when(
+           UBS == "-" ~ "0", # dash indicates 0 deaths
+           TRUE ~ UBS)),
+         muni_code_6 = as.numeric(str_split_fixed(Município, ' ', 2)[, 1])) %>% 
+  dplyr::select(c("muni_code_6", "year", "UBS"))
+
+# CNES - Human Resources - Professionals - Individuals - according to CBO 2002
+# Quantity per Year/month competed. according to Municipality
+# Higher Education Occupations: Nurse
+# http://tabnet.datasus.gov.br/cgi/tabcgi.exe?cnes/cnv/prid02br.def
+nurse <- read.delim("~/Brazil-measles/data/raw/cnes_nurses_08_23.csv",
+                    sep = ";", dec = ",", fileEncoding = "Latin1",
+                    skip = 4, nrow = 5597) %>% 
+  filter(!str_detect(Município, "IGNORADO")) %>% 
+  pivot_longer(cols = -"Município",
+               names_to = "year",
+               values_to = "nurses") %>% 
+  mutate(year = as.numeric(substring(year, 2, 5)),
+         nurses = as.numeric(case_when(
+           nurses == "-" ~ "0", # dash indicates 0 deaths
+           TRUE ~ nurses)),
+         muni_code_6 = as.numeric(str_split_fixed(Município, ' ', 2)[, 1])) %>% 
+  dplyr::select(c("muni_code_6", "year", "nurses"))
+
+
+# CNES - Human Resources - Professionals - Individuals - according to CBO 2002
+# Quantity per Year/month competed. according to Municipality
+# Higher Level Occupations: Clinical Physician
+# http://tabnet.datasus.gov.br/cgi/tabcgi.exe?cnes/cnv/prid02br.def
+doctor <- read.delim("~/Brazil-measles/data/raw/cnes_clinical_doctors_08_23.csv",
+                     sep = ";", dec = ",", fileEncoding = "Latin1",
+                     skip = 4, nrow = 5597) %>% 
+  filter(!str_detect(Município, "IGNORADO")) %>% 
+  pivot_longer(cols = -"Município",
+               names_to = "year",
+               values_to = "doctors") %>% 
+  mutate(year = as.numeric(substring(year, 2, 5)),
+         doctors = as.numeric(case_when(
+           doctors == "-" ~ "0", # dash indicates 0 deaths
+           TRUE ~ doctors)),
+         muni_code_6 = as.numeric(str_split_fixed(Município, ' ', 2)[, 1])) %>% 
+  dplyr::select(c("muni_code_6", "year", "doctors"))
+
+healthcare <- merge(ubs, nurse, by = c("muni_code_6", "year"), all = T) %>% 
+  merge(doctor, by = c("muni_code_6", "year"), all = T) %>% 
+  left_join(pop, by = c("muni_code_6", "year")) %>% 
+  mutate(UBS_p100k = UBS / population * 100000,
+         nurses_p100k = nurses / population * 100000,
+         doctors_p100k = doctors / population * 100000) %>% 
+  dplyr::select(muni_code_6, year, UBS_p100k, nurses_p100k, doctors_p100k)
+
+rm(ubs, nurse, doctor)
 
 # SES - poverty
 # https://datasus.saude.gov.br/trabalho-e-renda-censos-1991-2000-e-2010
@@ -170,7 +256,7 @@ poverty <- read.csv("~/Brazil-measles/data/raw/poverty_data.csv") %>%
          pct_low_inc_2010 = X2010) %>%
   mutate(across(c(pct_low_inc_1991, pct_low_inc_2000, pct_low_inc_2010), as.numeric), # "..." is NA
          muni_code_6 = as.numeric(str_split_fixed(municipality, ' ', 2)[, 1])) %>% 
-  select(-c(Total, municipality))
+  dplyr::select(-c(Total, municipality))
 
 
 # SES - education
@@ -184,7 +270,7 @@ read_clean_educ <- function(file, rename_map) {
     filter(muni != "Total") %>% 
     rename(!!!rename_map) %>%
     mutate(muni_code_6 = as.numeric(str_split_fixed(muni, " ", 2)[, 1])) %>%
-    select(-any_of(c("Não.determinada", "Alfabetização.de.adultos", "Total", "muni")))
+    dplyr::select(-any_of(c("Não.determinada", "Alfabetização.de.adultos", "Total", "muni")))
 }
 
 # this wacky setup reduces some clutter
@@ -218,7 +304,7 @@ educ <- tibble(
 # 0: 0 from rounding
 # ...: NA
 urban <- read.csv("~/Brazil-measles/data/raw/urban_pop.csv", skip = 3, nrow = 11133) %>%  # remove notes from top and bottom and total row at bottom
- select(-Município) %>%
+  dplyr::select(-Município) %>%
   rename(muni_code = Cód.,
          status = Situação.do.domicílio) %>% 
   filter(!str_detect(X1991, "Total") & 
@@ -229,7 +315,7 @@ urban <- read.csv("~/Brazil-measles/data/raw/urban_pop.csv", skip = 3, nrow = 11
          pct_urban_2010 = X2010) %>% 
   mutate(muni_code_6 = substr(muni_code, 1, 6),
          across(everything(), ~as.numeric(.))) %>%  # "..." is NA
-  select(-c(status, muni_code))
+  dplyr::select(-c(status, muni_code))
 
 
 # municipality geography
@@ -252,7 +338,7 @@ geom <- read_sf('~/Brazil-measles/data/brazil_muni_sf/BR_Municipios_2024.shp') %
          muni_code = as.numeric(muni_code),
          state_code = as.numeric(state_code)) %>% 
   filter(muni_code_6 != 430000) %>% # 4300001 and 4300002 are not in any other list, may not exactly be inhabited
-  select(muni_code, muni_code_6, muni_name, state_name, state_code, region) %>% 
+  dplyr::select(muni_code, muni_code_6, muni_name, state_name, state_code, region) %>% 
   merge(poverty, by = "muni_code_6", all = TRUE) %>% # merge with all non-panel data
   merge(educ, by = "muni_code_6", all = TRUE) %>% 
   merge(urban, by = "muni_code_6", all = TRUE) %>% 
@@ -272,46 +358,36 @@ rm(poverty, educ, urban)
 mono <- read.delim("~/Brazil-measles/data/vaccination/monovalent_measles_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
-  select(-X.Total) %>% 
+  dplyr::select(-X.Total) %>% 
   pivot_longer(cols = -"Município",
                names_to = "year",
                values_to = "monovalent_coverage") %>% 
   mutate(year = as.numeric(substr(year, 2, 5)),
          muni_code_6 = substr(Município, 1, 6)) %>% 
-  select(-Município)
+  dplyr::select(-Município)
 
 mmr1 <- read.delim("~/Brazil-measles/data/vaccination/MMR1_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
-  select(-X.Total) %>% 
+  dplyr::select(-X.Total) %>% 
   pivot_longer(cols = -"Município",
                names_to = "year",
                values_to = "MMR1_coverage") %>% 
   mutate(year = as.numeric(substr(year, 2, 5)),
          muni_code_6 = substr(Município, 1, 6)) %>% 
-  select(-Município)
+  dplyr::select(-Município)
 
 mmr2 <- read.delim("~/Brazil-measles/data/vaccination/MMR2_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
-  select(-X.Total) %>% 
+  dplyr::select(-X.Total) %>% 
   pivot_longer(cols = -"Município",
                names_to = "year",
                values_to = "MMR2_coverage") %>% 
   mutate(year = as.numeric(substr(year, 2, 5)),
          muni_code_6 = substr(Município, 1, 6)) %>% 
-  select(-Município)
+  dplyr::select(-Município)
 
-tetra <- read.delim("~/Brazil-measles/data/vaccination/tetra_viral_coverage.csv",
-                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
-  filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
-  select(-X.Total) %>% 
-  pivot_longer(cols = -"Município",
-               names_to = "year",
-               values_to = "tetra_coverage") %>% 
-  mutate(year = as.numeric(substr(year, 2, 5)),
-         muni_code_6 = substr(Município, 1, 6)) %>% 
-  select(-Município)
 
 mmr_2023 <- read.csv("~/Brazil-measles/data/raw/vaccines_2023.csv") %>% 
   clean_names() %>% 
@@ -321,43 +397,31 @@ mmr_2023 <- read.csv("~/Brazil-measles/data/raw/vaccines_2023.csv") %>%
   mutate(muni_code_6 = substr(municipio_residencia, 1, 6),
          across(c(MMR1_coverage, MMR2_coverage), ~as.numeric(gsub("[\\%,]", "", .))),
          year = 2023) %>% 
-  select(muni_code_6, year, MMR2_coverage, MMR1_coverage)
+  dplyr::select(muni_code_6, year, MMR2_coverage, MMR1_coverage)
 
 coverage <- merge(mono, mmr1, by = c("muni_code_6", "year"), all = TRUE) %>% 
   merge(mmr2, by = c("muni_code_6", "year"), all = TRUE) %>% 
-  merge(tetra, by = c("muni_code_6", "year"), all = TRUE) %>% 
   bind_rows(mmr_2023) %>% 
   mutate(muni_code_6 = as.numeric(muni_code_6))
 
-rm(mono, mmr1, mmr2, tetra, mmr_2023)
+rm(mono, mmr1, mmr2, mmr_2023)
 
-# population
-pop <- read.delim("~/Brazil-measles/data/ibge_muni_pop.csv",
-           sep = ";", fileEncoding = "Latin1", skip = 3, nrow = 5597) %>% 
-  filter(!str_detect(Município, "IGNORADO")) %>% 
-  pivot_longer(cols = -"Município",
-             names_to = "year",
-             values_to = "population") %>% 
-  mutate(year = as.numeric(substring(year, 2)),
-         population = as.numeric(case_when(
-           population == "-" ~ "0", # dash indicates 0 deaths
-           TRUE ~ population)),
-         muni_code_6 = as.numeric(str_split_fixed(Município, ' ', 2)[, 1])) %>% 
-  select(c("muni_code_6", "year", "population"))
-  
+
 
 
 
 # merge all data
 data_clean <- merge(mortality, measles_cases, by = c("muni_code_6", "year"), all = TRUE) %>% 
-  merge(coverage, by = c("muni_code_6", "year"), all = TRUE) %>% 
+  merge(coverage, by = c("muni_code_6", "year"), all = TRUE) %>%
+  left_join(healthcare, by = c("muni_code_6", "year")) %>%
   left_join(pop, by = c("muni_code_6", "year")) %>% 
   left_join(geom, by = "muni_code_6") %>% 
   filter(muni_code != 5101837) %>% # does not seem to have any inhabitants
-  select(muni_code, year, 
+  dplyr::select(muni_code, year, 
          MMR1_coverage, MMR2_coverage, monovalent_coverage,
          measles_cases, 
          measles_deaths, mumps_deaths, whooping_deaths, 
+         UBS_p100k, nurses_p100k, doctors_p100k,
          pct_urban_1991, pct_urban_2000, pct_urban_2010, 
          pct_low_inc_1991, pct_low_inc_2000, pct_low_inc_2010, 
          educ_pct_8_yrs_1991, educ_pct_8_yrs_2000, pct_complete_educ_2010, 
