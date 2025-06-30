@@ -1,0 +1,276 @@
+---
+title: "2025.06.30_figures"
+author: "Simon Cooper"
+format: pdf
+editor: visual
+---
+
+## 2025.06.30 Figures
+
+### 0. Set-up.
+
+```{r setup, include = FALSE}
+
+# Clearing environment.
+rm(list=ls())
+
+# Setting working directory.
+setwd("/Users/simoncooper/Documents/measles")
+
+# Loading data.
+load("2025.06.30_clean_brazil_data.RData")
+df <- data_clean
+rm(data_clean)
+
+# Loading relevant packages.
+library(tidyverse)
+library(colorspace)
+
+```
+
+#### Making cases and deaths per 100,000 variables.
+
+```{r}
+
+df <- df %>%
+  mutate(
+    measles_cases_per100k = (measles_cases / population) * 100000,
+    measles_deaths_per100k = (measles_deaths / population) * 100000)
+
+summary(df$measles_cases_per100k)
+summary(df$measles_deaths_per100k)
+
+save(df, file = "2025.06.30.2_clean_brazil_data.RData")
+
+```
+
+### 1. Measles.
+
+#### Vaccinations, national.
+
+```{r}
+
+# View(df)
+
+# Calculating national average vaccination rate.
+nat_avg_vax <- df %>%
+  group_by(year) %>%
+  summarize(weighted_avg_coverage = weighted.mean(coverage, population, na.rm = TRUE))
+
+# Plotting.
+ggplot(nat_avg_vax, aes(x = year, y = weighted_avg_coverage))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Vaccination Coverage",
+       title = "National Measles Vaccination Coverage, 1996-2023")
+
+```
+
+#### Vaccinations, regions.
+
+```{r}
+
+# Calculating region average vaccination rate.
+region_avg_vax <- df %>%
+  group_by(year, region) %>%
+  summarize(weighted_avg_coverage = weighted.mean(coverage, population, na.rm = TRUE), .groups = 'drop')
+
+# Plotting.
+ggplot(region_avg_vax, aes(x = year, y = weighted_avg_coverage, color = region))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Vaccination Coverage",
+       title = "Regional Measles Vaccination Coverage, 1996-2023")
+
+```
+
+#### Vaccinations, federal states.
+
+```{r}
+
+# Calculating state average vaccination rate.
+state_avg_vax <- df %>%
+  group_by(year, state_name) %>%
+  summarize(weighted_avg_coverage = weighted.mean(coverage, population, na.rm = TRUE), .groups = 'drop')
+
+# Plotting.
+ggplot(state_avg_vax, aes(x = year, y = weighted_avg_coverage))+
+  geom_line() +
+  facet_wrap(~state_name) +
+  labs(x = "Year",
+       y = "Measles Vaccination Coverage",
+       title = "State Measles Vaccination Coverage, 1996-2023")
+
+```
+
+#### Cases, national.
+
+```{r}
+
+# Summing cases.
+nat_cases <- df %>%
+  group_by(year) %>%
+  summarize(cases = sum(measles_cases, na.rm = TRUE))
+
+nat_cases_prop <- df %>%
+  group_by(year) %>%
+  summarize(cases_prop = sum(measles_cases_per100k, na.rm = TRUE))
+
+# Plotting.
+ggplot(nat_cases, aes(x = year, y = cases))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Cases",
+       title = "National Measles Cases, 1996-2023")
+
+ggplot(nat_cases_prop, aes(x = year, y = cases_prop))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Cases per 100,000",
+       title = "National Measles Cases per 100,000, 1996-2023")
+
+```
+
+#### Cases, regional.
+
+```{r}
+
+# Summing cases.
+region_cases <- df %>%
+  group_by(year, region) %>%
+  summarize(cases = sum(measles_cases, na.rm = TRUE), .groups = 'drop')
+
+region_cases_prop <- df %>%
+  group_by(year, region) %>%
+  summarize(cases_prop = sum(measles_cases_per100k, na.rm = TRUE), .groups = 'drop')
+
+# Plotting.
+ggplot(region_cases, aes(x = year, y = cases, color = region))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Cases",
+       title = "Regional Measles Cases, 1996-2023")
+
+ggplot(region_cases_prop, aes(x = year, y = cases_prop, color = region))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Cases per 100,000",
+       title = "Regional Measles Cases per 100,000, 1996-2023")
+
+```
+
+#### Cases, federal states.
+
+```{r}
+
+# Summing cases.
+state_cases <- df %>%
+  group_by(year, state_name) %>%
+  summarize(cases = sum(measles_cases, na.rm = TRUE), .groups = 'drop')
+
+state_cases_prop <- df %>%
+  group_by(year, state_name) %>%
+  summarize(cases_prop = sum(measles_cases_per100k, na.rm = TRUE), .groups = 'drop')
+
+# Plotting.
+ggplot(state_cases, aes(x = year, y = cases))+
+  geom_line() +
+  facet_wrap(~state_name) +
+  labs(x = "Year",
+       y = "Measles Cases",
+       title = "State Measles Cases, 1996-2023")
+
+ggplot(state_cases_prop, aes(x = year, y = cases_prop))+
+  geom_line() +
+  facet_wrap(~state_name) +
+  labs(x = "Year",
+       y = "Measles Cases per 100,000",
+       title = "State Measles Cases per 100,000, 1996-2023")
+
+```
+
+#### Mortality, national.
+
+```{r}
+
+# Summing deaths.
+nat_deaths <- df %>%
+  group_by(year) %>%
+  summarize(deaths = sum(measles_deaths, na.rm = TRUE))
+
+nat_deaths_prop <- df %>%
+  group_by(year) %>%
+  summarize(deaths_prop = sum(measles_deaths_per100k, na.rm = TRUE))
+
+# Plotting.
+ggplot(nat_deaths, aes(x = year, y = deaths))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Deaths",
+       title = "National Measles Deaths, 1996-2023")
+
+ggplot(nat_deaths_prop, aes(x = year, y = deaths_prop))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Deaths per 100,000",
+       title = "National Measles Deaths per 100,000, 1996-2023")
+
+```
+
+#### Mortality, regions.
+
+```{r}
+
+# Summing deaths.
+region_deaths <- df %>%
+  group_by(year, region) %>%
+  summarize(deaths = sum(measles_deaths, na.rm = TRUE), .groups = 'drop')
+
+region_deaths_prop <- df %>%
+  group_by(year, region) %>%
+  summarize(deaths_prop = sum(measles_deaths_per100k, na.rm = TRUE), .groups = 'drop')
+
+# Plotting.
+ggplot(region_deaths, aes(x = year, y = deaths, color = region))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Deaths",
+       title = "Regional Measles Deaths, 1996-2023")
+
+ggplot(region_deaths_prop, aes(x = year, y = deaths_prop, color = region))+
+  geom_line() +
+  labs(x = "Year",
+       y = "Measles Deaths per 100,000",
+       title = "Regional Measles Deaths per 100,000, 1996-2023")
+
+```
+
+#### Mortality, federal states.
+
+```{r}
+
+# Summing cases.
+state_deaths <- df %>%
+  group_by(year, state_name) %>%
+  summarize(deaths = sum(measles_deaths, na.rm = TRUE), .groups = 'drop')
+
+state_deaths_prop <- df %>%
+  group_by(year, state_name) %>%
+  summarize(deaths_prop = sum(measles_deaths_per100k, na.rm = TRUE), .groups = 'drop')
+
+# Plotting.
+ggplot(state_deaths, aes(x = year, y = deaths))+
+  geom_line() +
+  facet_wrap(~state_name) +
+  labs(x = "Year",
+       y = "Measles Deaths",
+       title = "State Measles Deaths, 1996-2023")
+
+ggplot(state_deaths_prop, aes(x = year, y = deaths_prop))+
+  geom_line() +
+  facet_wrap(~state_name) +
+  labs(x = "Year",
+       y = "Measles Deaths per 100,000",
+       title = "State Measles Deaths per 100,000, 1996-2023")
+
+```
