@@ -27,14 +27,16 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
            TRUE ~ MMR2_coverage),
          coverage2 = case_when(
            year %in% 2000:2003 ~ monovalent_coverage + MMR1_coverage,
-           TRUE ~ coverage),
-         coverage_lag2 = lag(coverage2, 2, order_by = year),
+           TRUE ~ coverage)) %>% 
+  group_by(muni_code) %>% 
+  mutate(coverage_lag2 = lag(coverage2, 2, order_by = year),
          coverage_lag3 = lag(coverage2, 3, order_by = year)) %>% 
+  ungroup() %>% 
   dplyr::select(muni_code, year, 
                 measles_cases, 
                 measles_deaths, mumps_deaths, whooping_deaths, 
                 measles_cases_per100k, measles_deaths_per100k,
-                coverage, coverage2,
+                coverage, coverage2, coverage_lag2, coverage_lag3,
                 UBS, UBS_p100k, nurses, nurses_p100k, doctors, doctors_p100k,
                 pct_urban_1991, pct_urban_2000, pct_urban_2010, 
                 pct_low_inc_1991, pct_low_inc_2000, pct_low_inc_2010, 
@@ -51,5 +53,7 @@ data_clean %>%
 # check muni codes...
 which(!data_clean$muni_code %in% geom$muni_code)
 
+df <- data_clean
+rm(data_clean)
 
-save(data_clean, file = "~/Brazil-measles/data/clean_brazil_data.RData")
+save(df, file = "~/Brazil-measles/data/clean_brazil_data.RData")
