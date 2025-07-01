@@ -224,7 +224,7 @@ rm(ubs, nurse, doctor)
 
 # vaccination
 
-mono <- read.delim("~/Brazil-measles/data/vaccination/monovalent_measles_coverage.csv",
+mono <- read.delim("~/Brazil-measles/data/raw/vaccination/monovalent_measles_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
   dplyr::select(-X.Total) %>% 
@@ -235,7 +235,7 @@ mono <- read.delim("~/Brazil-measles/data/vaccination/monovalent_measles_coverag
          muni_code_6 = substr(Município, 1, 6)) %>% 
   dplyr::select(-Município)
 
-mmr1 <- read.delim("~/Brazil-measles/data/vaccination/MMR1_coverage.csv",
+mmr1 <- read.delim("~/Brazil-measles/data/raw/vaccination/MMR1_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
   dplyr::select(-X.Total) %>% 
@@ -246,7 +246,7 @@ mmr1 <- read.delim("~/Brazil-measles/data/vaccination/MMR1_coverage.csv",
          muni_code_6 = substr(Município, 1, 6)) %>% 
   dplyr::select(-Município)
 
-mmr2 <- read.delim("~/Brazil-measles/data/vaccination/MMR2_coverage.csv",
+mmr2 <- read.delim("~/Brazil-measles/data/raw/vaccination/MMR2_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
   dplyr::select(-X.Total) %>% 
@@ -258,7 +258,7 @@ mmr2 <- read.delim("~/Brazil-measles/data/vaccination/MMR2_coverage.csv",
   dplyr::select(-Município)
 
 
-mmr_2023 <- read.csv("~/Brazil-measles/data/raw/vaccines_2023.csv") %>% 
+mmr_2023 <- read.csv("~/Brazil-measles/data/raw/vaccination/vaccines_2023.csv") %>% 
   clean_names() %>% 
   rename(MMR2_coverage = triplice_viral_2_dose,
          MMR1_coverage = triplice_viral_1_dose) %>% 

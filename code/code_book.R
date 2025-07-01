@@ -2,6 +2,11 @@ library(tidyr)
 library(dplyr)
 
 load("~/Brazil-measles/data/clean_brazil_data.RData")
+# coverage variable = monovalent coverage 1996-2000, max between monovalent and MMR1 between 2000-2003, 
+# MMR1 2004-2012, MMR2 2013-2023
+
+# coverage2 variable = monovalent coverage 1996-2000, sum of monovalent and MMR1 2000-2003, 
+# MMR1 2004-2012, MMR2 2013-2023
 
 vars <- data.frame(variable = names(data_clean)) %>% 
   mutate(description = case_when(

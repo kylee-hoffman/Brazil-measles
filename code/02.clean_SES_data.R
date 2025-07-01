@@ -97,13 +97,13 @@ urban <- read.csv("~/Brazil-measles/data/raw/urban_pop.csv", skip = 3, nrow = 11
 # 2023 shapefile
 # https://www.ibge.gov.br/en/geosciences/territorial-organization/territorial-meshes/18890-municipal-mesh.html?edicao=24069&t=downloads
 
-geom <- data.frame(read_sf('~/Brazil-measles/data/brazil_muni_sf/BR_Municipios_2024.shp')) %>% 
+geom <- read_sf('~/Brazil-measles/data/geometry/brazil_muni_sf/BR_Municipios_2024.shp') %>% 
   rename(muni_code = CD_MUN,
          muni_name = NM_MUN, 
          state_name = NM_UF,
          state_code = CD_UF,
          region = NM_REGIA) %>% 
-  mutate(region = recode(region,
+  mutate(region = dplyr::recode(region,
                          "Norte" = "north",
                          "Nordeste" = "northeast",
                          "Centro-oeste" = "centralwest",
@@ -116,7 +116,8 @@ geom <- data.frame(read_sf('~/Brazil-measles/data/brazil_muni_sf/BR_Municipios_2
   dplyr::select(muni_code, muni_code_6, muni_name, state_name, state_code, region) %>% 
   merge(poverty, by = "muni_code_6", all = TRUE) %>% # merge with all non-panel data
   merge(educ, by = "muni_code_6", all = TRUE) %>% 
-  merge(urban, by = "muni_code_6", all = TRUE)
+  merge(urban, by = "muni_code_6", all = TRUE) %>% 
+  data.frame()
 
 # check duplicates
 geom %>%

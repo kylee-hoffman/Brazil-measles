@@ -13,7 +13,7 @@ library("readxl")
 
 
 
-muni_id <- data.frame(read_sf('~/Brazil-measles/data/brazil_muni_sf/BR_Municipios_2024.shp')) %>% 
+muni_id <- data.frame(read_sf('~/Brazil-measles/data/geometry/brazil_muni_sf/BR_Municipios_2024.shp')) %>% 
   rename(muni_code = CD_MUN,
          muni_name = NM_MUN, 
          state_code = CD_UF) %>% 
@@ -118,4 +118,4 @@ pop <- bind_rows(pop96_99, pop00_23)
 
 save(pop, file = "~/Brazil-measles/data/muni_pop_96_23.RData")
 
-rm(pop00_23, pop96, pop97, pop98, pop99, pop96_99, muni_id)
+rm(pop00_23, pop96, pop97, pop98, pop96_99, muni_id, pop)

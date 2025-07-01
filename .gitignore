@@ -2,3 +2,5 @@ data/
 scratch_paper.R
 .DS_Store
 codebook.txt
+code/2025.06.30.2_clean_brazil_data.RData
+codebook.R
