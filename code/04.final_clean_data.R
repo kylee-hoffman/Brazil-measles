@@ -15,28 +15,42 @@ load("~/Brazil-measles/data/SES_data.RData")
 data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE) %>% 
   left_join(geom, by = "muni_code_6") %>% 
   filter(muni_code != 5101837) %>% # does not seem to have any inhabitants
-  mutate(measles_cases_per100k = measles_cases / population * 100000,
-         measles_deaths_per100k = measles_deaths / population * 100000,
+  mutate(measles_cases_p100k = measles_cases / population * 100000,
+         measles_deaths_p100k = measles_deaths / population * 100000,
          UBS_p100k = UBS / population * 100000,
          nurses_p100k = nurses / population * 100000,
          doctors_p100k = doctors / population * 100000,
+         outbreak = case_when(
+           year %in% 2013:2015 ~ "2013-2015",
+           year %in% 2018:2021 ~ "2018-2021",
+           TRUE ~ NA
+         ),
          coverage = case_when(
            year < 2000 ~ monovalent_coverage,
            year %in% 2000:2003 ~ pmax(monovalent_coverage, MMR1_coverage, na.rm = T),
            year %in% 2004:2012 ~ MMR1_coverage,
-           TRUE ~ MMR2_coverage),
+           TRUE ~ MMR2_coverage
+         ),
          coverage2 = case_when(
            year %in% 2000:2003 ~ monovalent_coverage + MMR1_coverage,
-           TRUE ~ coverage)) %>% 
+           TRUE ~ coverage
+         ),
+         goal = case_when(
+           coverage2 >= 95 ~ 1,
+           TRUE ~ 0
+         )) %>% 
   group_by(muni_code) %>% 
   mutate(coverage_lag2 = lag(coverage2, 2, order_by = year),
-         coverage_lag3 = lag(coverage2, 3, order_by = year)) %>% 
+         coverage_lag3 = lag(coverage2, 3, order_by = year),
+         coverage_lag4 = lag(coverage2, 4, order_by = year),
+         coverage_lag5 = lag(coverage2, 5, order_by = year)) %>% 
   ungroup() %>% 
   dplyr::select(muni_code, year, 
-                measles_cases, 
+                measles_cases, outbreak,
                 measles_deaths, mumps_deaths, whooping_deaths, 
-                measles_cases_per100k, measles_deaths_per100k,
-                coverage, coverage2, coverage_lag2, coverage_lag3,
+                measles_cases_p100k, measles_deaths_p100k,
+                coverage, coverage2, goal,
+                coverage_lag2, coverage_lag3, coverage_lag4, coverage_lag5,
                 UBS, UBS_p100k, nurses, nurses_p100k, doctors, doctors_p100k,
                 pct_urban_1991, pct_urban_2000, pct_urban_2010, 
                 pct_low_inc_1991, pct_low_inc_2000, pct_low_inc_2010, 
@@ -57,3 +71,20 @@ df <- data_clean
 rm(data_clean)
 
 save(df, file = "~/Brazil-measles/data/clean_brazil_data.RData")
+
+
+outbreak_13_15 <- df %>% 
+  filter(outbreak == "2013-2015") %>% 
+  group_by(muni_code) %>% 
+  summarise(measles_cases = sum(measles_cases),
+            population = population[year == 2014][1], # middle of outbreak
+            measles_cases_p100k = measles_cases / population * 100000)
+
+
+outbreak_18_21 <- df %>% 
+  filter(outbreak == "2018-2021") %>% 
+  group_by(muni_code) %>% 
+  summarise(measles_cases = sum(measles_cases),
+            population = population[year == 2020][1], # middle-ish of outbreak
+            measles_cases_p100k = measles_cases / population * 100000)
+

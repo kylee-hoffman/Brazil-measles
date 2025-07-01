@@ -14,11 +14,10 @@ library(janitor)
 # http://tabnet.datasus.gov.br/cgi/tabcgi.exe?sinanwin/cnv/exantbr.def (2001-2006)
 # http://tabnet.datasus.gov.br/cgi/tabcgi.exe?sinannet/cnv/exantbr.def (2007-2024)
 # data selection: 
-#     row = municipality, column = year of first symptoms, content = cases by residence
+#     row = municipality, column = year of first symptoms, content = cases by residence, filtered to measles
 #     make sure to select display rows with 0 data
 
 # notes from website:
-# "The last confirmed case of Rubella in Brazil occurred in 2008
 # "- In 2015 - 214 cases were confirmed, being: CE (211), SP (02) and RR (01); 
 # - In 2016 and 2017, Brazil did not confirm any cases of measles; 
 # - In 2018 - 9,325 cases were confirmed: AM (8,791), RR (361), PA (83), RS (47), RJ (20), PE (4), SE (4), BA (3), SP (9), RO (2) and DF (1); the genotypes identified were D8 and 1B3; 
@@ -30,9 +29,10 @@ library(janitor)
 # In 2024, 2 imported cases were confirmed, namely: RS (1) and MG (1); the genotypes identified were B3 and D8 (Victória lineage) respectively."
 
 read_clean_case_data <- function(path, drop_cols = NULL) {
-  read.delim(path, sep = ";", fileEncoding = "Latin1", skip = 3, nrow = 5597) %>%  # remove notes from top and bottom and total row at bottom
+  read.delim(path, sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5597) %>%  # remove notes from top and bottom and total row at bottom
+    clean_names() %>% 
     dplyr::select(-any_of(drop_cols)) %>%
-    rename(muni = Município.de.residência) %>% 
+    rename(muni = municipio_de_residencia) %>% 
     filter(!str_detect(muni, "IGNORADO")) %>% 
     pivot_longer(cols = -"muni",
                  names_to = "year",
@@ -46,12 +46,12 @@ read_clean_case_data <- function(path, drop_cols = NULL) {
 }
 
 measles_cases <- bind_rows(
-  read_clean_case_data("~/Brazil-measles/data/raw/case_data/measles_cases_2001_2006.csv",
-                       drop_cols = c("Total","X2024")),
-  read_clean_case_data("~/Brazil-measles/data/raw/case_data/measles_cases_2007_2024.csv",
-                       drop_cols = c("X.1975", "X1979", "X1981", "X1985", "X1989", "X1990", 
-                                     "X1992", "X1993", "X1994", "X1995", "X1996", "X2000", 
-                                     "X2001", "X2002", "X2005", "X2006", "Total", "X2024")))
+  read_clean_case_data("~/Brazil-measles/data/raw/case_data/sinan_measles_cases_01_06.csv",
+                       drop_cols = "total"),
+  read_clean_case_data("~/Brazil-measles/data/raw/case_data/sinan_measles_cases_07_23.csv",
+                       drop_cols = c("x_1975", "x1979", "x1981", "x1985", "x1989", "x1990", 
+                                     "x1992", "x1993", "x1994", "x1995", "x1996", "x2000", 
+                                     "x2001", "x2002", "x2005", "x2006", "total")))
 
 
 # measles mortality

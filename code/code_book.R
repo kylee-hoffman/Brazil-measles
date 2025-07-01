@@ -8,90 +8,119 @@ load("~/Brazil-measles/data/clean_brazil_data.RData")
 # coverage2 variable = monovalent coverage 1996-2000, sum of monovalent and MMR1 2000-2003, 
 # MMR1 2004-2012, MMR2 2013-2023
 
-vars <- data.frame(variable = names(data_clean)) %>% 
+vars <- data.frame(variable = names(df)) %>% 
   mutate(description = case_when(
-    variable == "muni_code" ~ "7 digit municipality code (numeric)",
-    variable == "year" ~ "year (numeric)",
-    variable == "MMR1_coverage" ~ "MMR vaccine first dose coverage",
-    variable == "MMR2_coverage" ~ "MMR vaccine second dose coverage",
+    variable == "muni_code" ~ "7 digit municipality code",
+    variable == "year" ~ "year",
+    variable == "measles_cases" ~ "measles cases by municipality residence",
+    variable == "measles_deaths" ~ "deaths by municipality residence",
+    variable == "mumps_deaths" ~ "deaths by municipality residence",
+    variable == "whooping_deaths" ~ "deaths by municipality residence",
+    
+    variable == "measles_cases_p100k" ~ "measles cases per 100,000 by municipality residence",
+    variable == "measles_deaths_p100k" ~ "measles deaths per 100,000 by municipality residence",
+    
+    variable == "outbreak" ~ "flags outbreak periods: 2013-2015 or 2018-2021, NA othewise",
+    
     variable == "monovalent_coverage" ~ "monovalent measles vaccine coverage",
-    variable == "MMR2_goal" ~ "Binary: 1 if MMR second dose coverage equal to or greater than goal of 95%, 0 otherwise; 1996-2021 (numeric)",
-    variable == "DTP_coverage" ~ "DTP vaccine coverage; 1996-2023 (numeric)",
-    variable == "DTP_goal" ~ "Binary: 1 if DTP coverage equal to or greater than goal of 95%, 0 otherwise; 1996-2021 (numeric)",
-    variable == "measles_cases" ~ "number of measles cases for residents of a municipality; 2001-2023 (numeric)",
-    variable == "measles_deaths" ~ "number of measles deaths for residents of a municipality; 1996-2023 (numeric)",
-    variable == "mumps_deaths" ~ "number of mumps deaths for residents of a municipality; 1996-2023 (numeric)",
-    variable == "whooping_deaths" ~ "number of whooping cough deaths for residents of a municipality; 1996-2023 (numeric)",
-    variable == "pct_urban_1991" ~ "Percent of municipality that lives in an urban area in 1991 (numeric)",
-    variable == "pct_urban_2000" ~ "Percent of municipality that lives in an urban area in 2000 (numeric)",
-    variable == "pct_urban_2010" ~ "Percent of municipality that lives in an urban area in 2010 (numeric)",
+    variable == "MMR1_coverage" ~ "MMR first dose coverage",
+    variable == "MMR2_coverage" ~ "MMR second dose coverage",
+    variable == "coverage" ~ "combination of all measles vaccine coverage, equal to the higher coverage between monovalent and MMR1 between 2000-2003",
+    variable == "coverage2" ~ "additive combination of measles vaccines, only MMR2 after 2013",
+    variable == "goal" ~ "Binary: 1 if overall coverage equal to or greater than goal of 95%, 0 otherwise; 1996-2023",
     
-    variable == "pct_low_inc_1991" ~ "percent of municipality with a monthly per capita household income of up to half the minimum wage in 1991 (numeric)",
-    variable == "pct_low_inc_2000" ~ "percent of municipality with a monthly per capita household income of up to half the minimum wage in 2000 (numeric)",
-    variable == "pct_low_inc_2010" ~ "percent of municipality with a monthly per capita household income of up to half the minimum wage in 2010 (numeric)",
+    variable == "coverage_lag2" ~ "Coverage2 variable lagged 2 years",
+    variable == "coverage_lag3" ~ "Coverage2 variable lagged 3 years",
+    variable == "coverage_lag4" ~ "Coverage2 variable lagged 4 years",
+    variable == "coverage_lag5" ~ "Coverage2 variable lagged 5 years",
     
-    variable == "educ_pct_8_yrs_1991" ~ "percent of municipality that completed 8 years and more of study in 1991 (numeric)",
-    variable == "educ_pct_8_yrs_2000" ~ "percent of municipality that completed 8 years and more of study in 2000 (numeric)",
-    variable == "pct_complete_educ_2010" ~ "percent of municipality that completed 2nd cycle of basic education or more in 2010 (numeric)",
+    variable == "UBS" ~ "Number of UBS clinics in municipality as of Januaary each year",
+    variable == "nurses" ~ "Number of nurses in municipality as of Januaary each year, no duplicate individuals",
+    variable == "doctors" ~ "Number of doctors in municipality as of Januaary each year, no duplicate individuals",
     
-    variable == "population" ~ "popualtion of municipality; 1996-2023 (numeric)",
-    variable == "CBR" ~ "Live births per 1,000 population; 1996-2021 (numeric)",
-    variable == "IMR" ~ "infant mortality rate; number of deaths per 1,000 live births of children under 1 year old; 1996-2021 (numeric)",
-    variable == "CDR" ~ "crude death rate; deaths per 1,000 population; 1996-2021 (numeric)",
-    variable == "MHDI" ~ "Brazilian Municipal Human Development Index in 1991, 2000, and 2010. three dimensions: education, longevity, and income; 1996-2021 (numeric)",   
-    variable == "GINI" ~ "Value of Gini coefficient; 1996-2021 (numeric)",
-    variable == "GDP_PC" ~ "per capita Gross Domestic Product, current price (BRL 1,00); 1996-2021 (numeric)",
-    variable == "sanitation" ~ "Percent of people in households with an inadequate water supply and sanitation; 1996-2021 (numeric)",
-    variable == "muni_code_6" ~ "6-digit municipality code (numeric)",
-    variable == "muni_name" ~ "municipality name (character)",
-    variable == "state_name" ~ "state name of municipality (character)",
-    variable == "state_code" ~ "state code  of municipality (numeric)",
-    variable == "region" ~ "region of municipality (character)"
+    variable == "UBS_p100k" ~ "Number of UBS clinics per 100,000 municipality residents as of Januaary each year",
+    variable == "nurses_p100k" ~ "Number of nurses per 100,000 municipality residents as of Januaary each year",
+    variable == "doctors_p100k" ~ "Number of doctors per 100,000 municipality residents as of Januaary each year",
+    
+    variable == "pct_urban_1991" ~ "Percent of municipality that lives in an urban area in 1991",
+    variable == "pct_urban_2000" ~ "Percent of municipality that lives in an urban area in 2000",
+    variable == "pct_urban_2010" ~ "Percent of municipality that lives in an urban area in 2010",
+    
+    variable == "pct_low_inc_1991" ~ "Percent of municipality with a monthly per capita household income of up to half the minimum wage in 1991",
+    variable == "pct_low_inc_2000" ~ "Percent of municipality with a monthly per capita household income of up to half the minimum wage in 2000",
+    variable == "pct_low_inc_2010" ~ "Percent of municipality with a monthly per capita household income of up to half the minimum wage in 2010",
+    
+    variable == "educ_pct_8_yrs_1991" ~ "Percent of municipality that completed 8 years and more of study in 1991",
+    variable == "educ_pct_8_yrs_2000" ~ "Percent of municipality that completed 8 years and more of study in 2000",
+    variable == "pct_complete_educ_2010" ~ "Percent of municipality that completed 2nd cycle of basic education or more in 2010",
+    
+    variable == "population" ~ "Popualtion of municipality; intercensal count for 1996, estimates otherwise",
+    variable == "muni_code_6" ~ "6-digit municipality code",
+    variable == "muni_name" ~ "Municipality name",
+    variable == "state_name" ~ "State name of municipality",
+    variable == "state_code" ~ "State code  of municipality",
+    variable == "region" ~ "Region of municipality"
   ),
   years_avail = case_when(
+    variable == "coverage_lag2" ~ "1998-2023",
+    variable == "coverage_lag3" ~ "1999-2023",    
+    variable == "coverage_lag4" ~ "2000-2023",
+    
+    variable %in% c("UBS", "UBS_p100k") ~ "2007-2023",
+    variable %in% c("nurses", "doctors", "nurses_p100k", "doctors_p100k") ~ "2008-2023",
+    
     variable == "MMR1_coverage" ~ "1999-2023",
     variable == "MMR2_coverage" ~ "2013-2023",
     variable == "monovalent_coverage" ~ "1996-2003",
-    variable %in% c("DTP_coverage", "measles_deaths", 
-                    "mumps_deaths", "whooping_deaths") ~ "1996-2023",
     
-    variable == "measles_cases" ~ "2001-2023",
+    variable %in% c("measles_deaths", "mumps_deaths", "whooping_deaths",
+                    "coverage", "coverage2", "outbreak", "population", "goal",
+                    "measles_deaths_p100k", "muni_code", "muni_code_6", "year", 
+                    "muni_name", "state_name", "state_code", "region") ~ "1996-2023",
+    
+    variable %in% c("measles_cases", "measles_cases_p100k", "coverage_lag5") ~ "2001-2023",
     
     variable %in% c("pct_urban_1991", "pct_urban_2000", "pct_urban_2010",
                     "pct_low_inc_1991", "pct_low_inc_2000", "pct_low_inc_2010",
-                    "educ_pct_8_yrs_1991", "educ_pct_8_yrs_2000", "pct_complete_educ_2010") ~ "census year",
-    
-    variable %in% c("population", "CBR", "CDR", "IMR", "MHDI", "GINI", "GDP_PC",
-                    "sanitation", "DTP_goal", "MMR2_goal") ~ "1996-2021",
-    
-    variable %in% c("muni_code", "muni_code_6", "year", "muni_name", "state_name", "state_code", "region") ~ "1996-2023"
+                    "educ_pct_8_yrs_1991", "educ_pct_8_yrs_2000", "pct_complete_educ_2010") ~ "census years",
   ),
   source = case_when(
-    variable %in% c("muni_code", "year") ~ "",
+    variable == "outbreak" ~ "derived from inference",
+
+    variable %in% c("UBS", "UBS_p100k", "nurses", "doctors", 
+                    "nurses_p100k", "doctors_p100k") ~ "CNES",
     
-    variable %in% c("MMR2_coverage", "MMR1_coverage", "monovalent_coverage") ~ "DATASUS taabnet - SI-PNI",
+    variable %in% c("coverage", "coverage2", "goal", "coverage_lag2",
+                    "coverage_lag3", "coverage_lag4", "coverage_lag5") ~ "derived from SI-PNI",
     
-    variable == "measles_cases" ~ "DATASUS tabnet - SINAN",
+    variable %in% c("muni_code_6", "year") ~ "",
     
-    variable %in% c("measles_deaths", "mumps_deaths", "whooping_deaths") ~ "DATASUS tabnet - SIMDO",
+    variable %in% c("MMR2_coverage", "MMR1_coverage", "monovalent_coverage") ~ "SI-PNI",
+    
+    variable == "measles_cases" ~ "SINAN",
+    
+    variable == "measles_cases_p100k" ~ "derived from SINAN",
+    
+    variable == "measles_deaths_p100k" ~ "derived from SIMDO",
+    
+    variable %in% c("measles_deaths", "mumps_deaths", "whooping_deaths") ~ "SIMDO",
     
     variable %in% c("pct_urban_1991", "pct_urban_2000", "pct_urban_2010") ~ "IBGE table 202",
 
-    variable %in% c("pct_low_inc_1991", "pct_low_inc_2000", "pct_low_inc_2010") ~ "DATASUS tabnet/IBGE",
+    variable %in% c("pct_low_inc_1991", "pct_low_inc_2000", "pct_low_inc_2010") ~ "IBGE",
 
-    variable %in% c("educ_pct_8_yrs_1991", "educ_pct_8_yrs_2000", "pct_complete_educ_2010") ~ "DATASUS tabnet/IBGE",
+    variable %in% c("educ_pct_8_yrs_1991", "educ_pct_8_yrs_2000", "pct_complete_educ_2010") ~ "IBGE",
 
-    variable %in% c("population", "CBR", "CDR", "IMR", "MHDI", "GINI", "GDP_PC",
-                  "sanitation", "DTP_goal", "MMR2_goal") ~ "",
-   
-    variable %in% c("muni_code", "muni_name", "state_name", "state_code", "region") ~ "IBGE"
+    variable %in% c("population", "muni_code", "muni_name", "state_name", "state_code", "region") ~ "IBGE"
   ),
   link = case_when(
-    variable %in% c("muni_code", "year") ~ "",
+    variable %in% c("muni_code_6", "year") ~ "",
     
-    variable == "measles_cases" ~ "",
+    variable == "UBS" ~ "http://tabnet.datasus.gov.br/cgi/deftohtm.exe?cnes/cnv/estabbr.def",
     
-    variable %in% c("measles_deaths", "mumps_deaths", "whooping_deaths") ~ "",
+    variable == "measles_cases" ~ "http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sinannet/cnv/exantbr.def",
+    
+    variable %in% c("measles_deaths", "mumps_deaths", "whooping_deaths") ~ "http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sim/cnv/obt10br.def",
     
     variable %in% c("pct_urban_1991", "pct_urban_2000", "pct_urban_2010") ~ "https://sidra.ibge.gov.br/tabela/202",
     
@@ -104,10 +133,13 @@ vars <- data.frame(variable = names(data_clean)) %>%
     variable %in% c("muni_code", "muni_name", "state_name", "state_code", "region") ~ "https://www.ibge.gov.br/en/geosciences/territorial-organization/territorial-meshes/18890-municipal-mesh.html?edicao=24069"
   ),
   link2 = case_when(
+    variable == "population" ~ "https://www.ibge.gov.br/en/statistics/social/labor/18448-estimates-of-resident-population-for-municipalities-and-federation-units.html?=&t=downloads",
+    variable == "measles_cases" ~ "http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sinanwin/cnv/exantbr.def",
     variable %in% c("MMR2_coverage", "DTP_coverage") ~ "http://tabnet.datasus.gov.br/cgi/dhdat.exe?bd_pni/cpnibr.def"
   ),
   link3 = case_when(
+    variable == "population" ~ "https://sidra.ibge.gov.br/tabela/475",
     variable %in% c("MMR2_coverage", "DTP_coverage") ~ "https://infoms.saude.gov.br/extensions/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA.html"
-  )) %>% 
-  filter(variable != "tetra_coverage")
+  ))
+
 
