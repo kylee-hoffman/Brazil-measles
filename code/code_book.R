@@ -142,4 +142,3 @@ vars <- data.frame(variable = names(df)) %>%
     variable %in% c("MMR2_coverage", "DTP_coverage") ~ "https://infoms.saude.gov.br/extensions/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA.html"
   ))
 
-
