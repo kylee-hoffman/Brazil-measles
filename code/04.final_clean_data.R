@@ -73,18 +73,3 @@ rm(data_clean)
 save(df, file = "~/Brazil-measles/data/clean_brazil_data.RData")
 
 
-outbreak_13_15 <- df %>% 
-  filter(outbreak == "2013-2015") %>% 
-  group_by(muni_code) %>% 
-  summarise(measles_cases = sum(measles_cases),
-            population = population[year == 2014][1], # middle of outbreak
-            measles_cases_p100k = measles_cases / population * 100000)
-
-
-outbreak_18_21 <- df %>% 
-  filter(outbreak == "2018-2021") %>% 
-  group_by(muni_code) %>% 
-  summarise(measles_cases = sum(measles_cases),
-            population = population[year == 2020][1], # middle-ish of outbreak
-            measles_cases_p100k = measles_cases / population * 100000)
-

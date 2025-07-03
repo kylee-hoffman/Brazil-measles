@@ -223,7 +223,7 @@ rm(ubs, nurse, doctor)
 
 
 # vaccination
-
+# http://tabnet.datasus.gov.br/cgi/dhdat.exe?bd_pni/cpnibr.def
 mono <- read.delim("~/Brazil-measles/data/raw/vaccination/monovalent_measles_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
@@ -258,6 +258,7 @@ mmr2 <- read.delim("~/Brazil-measles/data/raw/vaccination/MMR2_coverage.csv",
   dplyr::select(-Município)
 
 
+# from https://infoms.saude.gov.br/extensions/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA.html#
 mmr_2023 <- read.csv("~/Brazil-measles/data/raw/vaccination/vaccines_2023.csv") %>% 
   clean_names() %>% 
   rename(MMR2_coverage = triplice_viral_2_dose,
