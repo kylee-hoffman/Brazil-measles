@@ -58,14 +58,14 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
            TRUE ~ 0
          )) %>% 
   group_by(muni_code) %>% 
-  mutate(coverage_lag2 = lag(coverage2, 2, order_by = year),
-         coverage_lag3 = lag(coverage2, 3, order_by = year),
-         coverage_lag4 = lag(coverage2, 4, order_by = year),
-         coverage_lag5 = lag(coverage2, 5, order_by = year),
-         birth_rate_lag2 = lag(birth_rate, 2, order_by = year),
-         birth_rate_lag3 = lag(birth_rate, 3, order_by = year),
-         birth_rate_lag4 = lag(birth_rate, 4, order_by = year),
-         birth_rate_lag5 = lag(birth_rate, 5, order_by = year)) %>% 
+  mutate(coverage_lag2 = dplyr::lag(coverage2, 2, order_by = year),
+         coverage_lag3 = dplyr::lag(coverage2, 3, order_by = year),
+         coverage_lag4 = dplyr::lag(coverage2, 4, order_by = year),
+         coverage_lag5 = dplyr::lag(coverage2, 5, order_by = year),
+         birth_rate_lag2 = dplyr::lag(birth_rate, 2, order_by = year),
+         birth_rate_lag3 = dplyr::lag(birth_rate, 3, order_by = year),
+         birth_rate_lag4 = dplyr::lag(birth_rate, 4, order_by = year),
+         birth_rate_lag5 = dplyr::lag(birth_rate, 5, order_by = year)) %>% 
   ungroup() %>% 
   dplyr::select(muni_code, year, 
                 measles_cases, outbreak,
@@ -96,5 +96,3 @@ df <- data_clean
 rm(data_clean, basics_data)
 
 save(df, file = "~/Brazil-measles/data/clean_brazil_data.RData")
-
-
