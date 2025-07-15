@@ -11,8 +11,26 @@ load("~/Brazil-measles/data/health_data.RData")
 load("~/Brazil-measles/data/muni_pop_96_23.RData")
 load("~/Brazil-measles/data/SES_data.RData")
 
+# additional SES data from https://pmc.ncbi.nlm.nih.gov/articles/PMC9092813/
+load("~/Brazil-measles/data/basics_master_data.RData") 
+
+basics_data <- basics_data %>% 
+  filter(SCOPE == 7) %>% 
+  dplyr::select(LOCAL_CODE, YEAR, IMR, CMR, SANITATION, GDP_PC, GINI, 
+                MHDI, MHDI_E, MHDI_L, MHDI_I, BIRTH_RATE) %>% 
+  rename(muni_code_6 = LOCAL_CODE,
+         year = YEAR,
+         sanitation = SANITATION,
+         CDR = CMR,
+         birth_rate = BIRTH_RATE) %>% 
+  mutate(year = factor(year))
+
+
+
 # merge all data
 data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE) %>% 
+  left_join(basics_data %>% mutate(year = as.numeric(as.character(year))),
+            by = c("muni_code_6", "year")) %>% 
   left_join(geom, by = "muni_code_6") %>% 
   filter(muni_code != 5101837) %>% # does not seem to have any inhabitants
   mutate(measles_cases_p100k = measles_cases / population * 100000,
@@ -23,7 +41,7 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
          outbreak = case_when(
            year %in% 2013:2015 ~ "2013-2015",
            year %in% 2018:2021 ~ "2018-2021",
-           TRUE ~ NA
+           TRUE ~ "0"
          ),
          coverage = case_when(
            year < 2000 ~ monovalent_coverage,
@@ -43,7 +61,11 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
   mutate(coverage_lag2 = lag(coverage2, 2, order_by = year),
          coverage_lag3 = lag(coverage2, 3, order_by = year),
          coverage_lag4 = lag(coverage2, 4, order_by = year),
-         coverage_lag5 = lag(coverage2, 5, order_by = year)) %>% 
+         coverage_lag5 = lag(coverage2, 5, order_by = year),
+         birth_rate_lag2 = lag(birth_rate, 2, order_by = year),
+         birth_rate_lag3 = lag(birth_rate, 3, order_by = year),
+         birth_rate_lag4 = lag(birth_rate, 4, order_by = year),
+         birth_rate_lag5 = lag(birth_rate, 5, order_by = year)) %>% 
   ungroup() %>% 
   dplyr::select(muni_code, year, 
                 measles_cases, outbreak,
@@ -51,11 +73,14 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
                 measles_cases_p100k, measles_deaths_p100k,
                 coverage, coverage2, goal,
                 coverage_lag2, coverage_lag3, coverage_lag4, coverage_lag5,
+                birth_rate_lag2, birth_rate_lag3, birth_rate_lag4, birth_rate_lag5,
                 UBS, UBS_p100k, nurses, nurses_p100k, doctors, doctors_p100k,
                 pct_urban_1991, pct_urban_2000, pct_urban_2010, 
                 pct_low_inc_1991, pct_low_inc_2000, pct_low_inc_2010, 
                 educ_pct_8_yrs_1991, educ_pct_8_yrs_2000, pct_complete_educ_2010, 
                 MMR1_coverage, MMR2_coverage, monovalent_coverage,
+                sanitation, CDR, IMR, birth_rate, GDP_PC, GINI, MHDI,
+                MHDI_E, MHDI_L, MHDI_I,
                 population, muni_code_6, muni_name, state_name, state_code, region)
 
 
@@ -68,7 +93,7 @@ data_clean %>%
 which(!data_clean$muni_code %in% geom$muni_code)
 
 df <- data_clean
-rm(data_clean)
+rm(data_clean, basics_data)
 
 save(df, file = "~/Brazil-measles/data/clean_brazil_data.RData")
 
