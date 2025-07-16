@@ -62,18 +62,26 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
          coverage_lag3 = dplyr::lag(coverage2, 3, order_by = year),
          coverage_lag4 = dplyr::lag(coverage2, 4, order_by = year),
          coverage_lag5 = dplyr::lag(coverage2, 5, order_by = year),
+         coverage_lag6 = dplyr::lag(coverage2, 6, order_by = year),
+         coverage_lag7 = dplyr::lag(coverage2, 7, order_by = year),
+         coverage_lag8 = dplyr::lag(coverage2, 8, order_by = year),
          birth_rate_lag2 = dplyr::lag(birth_rate, 2, order_by = year),
          birth_rate_lag3 = dplyr::lag(birth_rate, 3, order_by = year),
          birth_rate_lag4 = dplyr::lag(birth_rate, 4, order_by = year),
-         birth_rate_lag5 = dplyr::lag(birth_rate, 5, order_by = year)) %>% 
+         birth_rate_lag5 = dplyr::lag(birth_rate, 5, order_by = year),
+         birth_rate_lag6 = dplyr::lag(birth_rate, 6, order_by = year),
+         birth_rate_lag7 = dplyr::lag(birth_rate, 7, order_by = year),
+         birth_rate_lag8 = dplyr::lag(birth_rate, 8, order_by = year)) %>% 
   ungroup() %>% 
   dplyr::select(muni_code, year, 
                 measles_cases, outbreak,
                 measles_deaths, mumps_deaths, whooping_deaths, 
                 measles_cases_p100k, measles_deaths_p100k,
                 coverage, coverage2, goal,
-                coverage_lag2, coverage_lag3, coverage_lag4, coverage_lag5,
+                coverage_lag2, coverage_lag3, coverage_lag4, coverage_lag5, 
+                coverage_lag6, coverage_lag7, coverage_lag8,
                 birth_rate_lag2, birth_rate_lag3, birth_rate_lag4, birth_rate_lag5,
+                birth_rate_lag6, birth_rate_lag7, birth_rate_lag8,
                 UBS, UBS_p100k, nurses, nurses_p100k, doctors, doctors_p100k,
                 pct_urban_1991, pct_urban_2000, pct_urban_2010, 
                 pct_low_inc_1991, pct_low_inc_2000, pct_low_inc_2010, 
@@ -81,7 +89,7 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
                 MMR1_coverage, MMR2_coverage, monovalent_coverage,
                 sanitation, CDR, IMR, birth_rate, GDP_PC, GINI, MHDI,
                 MHDI_E, MHDI_L, MHDI_I,
-                population, muni_code_6, muni_name, state_name, state_code, region)
+                population, muni_code_6, muni_name, state_name, region)
 
 
 # check duplicates
