@@ -1,7 +1,7 @@
 data/
-code/scratch_paper.R
+scratch_paper.R
 .DS_Store
 codebook.txt
 code/2025.06.30.2_clean_brazil_data.RData
 codebook.R
-code/prelim_analysis.R
+prelim_analysis.R

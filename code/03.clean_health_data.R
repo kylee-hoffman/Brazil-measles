@@ -224,6 +224,11 @@ rm(ubs, nurse, doctor)
 
 # vaccination
 # http://tabnet.datasus.gov.br/cgi/dhdat.exe?bd_pni/cpnibr.def
+# technical notes from tabnet:
+# "To calculate vaccination coverage by type of disease, doses (single dose or 3rd dose)
+# of the vaccines with the aforementioned components must be added together.
+# Example: for vaccination coverage against measles, the doses administered (1st dose) of
+# the triple viral, double viral and monovalent measles vaccines must be added together." 
 mono <- read.delim("~/Brazil-measles/data/raw/vaccination/monovalent_measles_coverage.csv",
                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
   filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
