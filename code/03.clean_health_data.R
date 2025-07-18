@@ -134,25 +134,58 @@ whooping_deaths <-
          muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
   dplyr::select(c("muni_code_6", "year", "whooping_deaths")) 
 
+
+# non-measles mortality (Xia et al. JID paper)
+# http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sim/cnv/obt10br.def
+#Deaths per Residence by Year of Death according to Municipality
+#ICD-10 Category: A04 Other intestinal infections (bacteria), A07 Other intestinal diseases (protozoa), 
+# A08 Other viral intestinal infections (NE), A09 Diarrhea and gastroenteritis (presumed original infection), 
+# A15 Respiratory tuberculosis (with bacterial and histological confirmation), 
+# A16 Respiratory tract tuberculosis (without bacterial histological confirmation), A17 Tuberculosis of the nervous system, 
+# A18 Tuberculosis of other organs, A19 Miliary tuberculosis, A39 Meningococcal infection, A40 Streptococcal septicemia, 
+# A41 Other septicemias, B06 Rubella, B58 Toxoplasmosis, B65 Schistosomiasis, B67 Echinococcosis, 
+# B68 Tapeworm infestation, B69 Cysticercosis, B70 Diphyllobothriasis and sparganosis, 
+# B71 Other cestode infestations, B72 Dracontiosis, B74 Filariasis, B76 Hookworm disease, B77 Ascariasis, 
+# B78 Strongyloidiasis, B79 Trichuriasis, B82 Intestinal parasitosis NE, B83 Other helminthiases, 
+# G00 Meningitis due to bacteria, NCOP, G03 Meningitis due to other causes and to other causes, NE, 
+# J01 Acute sinusitis, J02 Acute pharyngitis, J03 Acute tonsillitis, J04 Acute laryngitis and tracheitis, 
+# J06 Acute upper respiratory tract infection, multilocus NE, J13 Pneumonia due to Streptococcus pneumoniae, 
+# J15 Pneumonia due to bacteria, NCOP, J16 Pneumonia due to out microorg infecc espec NCOP, J18 Pneumonia due to microorg NE, 
+# J20 Acute bronchitis, J21 Acute bronchiolitis, J40 Bronchitis NE as acute or chronic, J41 Simple chronic bronchitis and mucopurulent, 
+# J42 Chronic bronchitis NE, J43 Emphysema, J45 Asthma, J47 Bronchiectasis
+nonmeasles_deaths <- 
+  read.delim("~/Brazil-measles/data/raw/mortality_data/sim_non-measles_mortality.csv",
+             sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 5597) %>%  # remove notes from top and bottom and total row at bottom
+  dplyr::select(-Total) %>%
+  rename(muni = Município) %>% 
+  filter(!str_detect(muni, "IGNORADO")) %>% 
+  pivot_longer(
+    cols = -"muni",
+    names_to = "year",
+    values_to = "nonmeasles_deaths") %>% 
+  mutate(year = as.numeric(substring(year, 2)),
+         nonmeasles_deaths = as.numeric(case_when(
+           nonmeasles_deaths == "-" ~ "0", # dash indicates 0 deaths
+           TRUE ~ nonmeasles_deaths)),
+         muni_code_6 = as.numeric(str_split_fixed(muni, ' ', 2)[, 1])) %>% 
+  dplyr::select(c("muni_code_6", "year", "nonmeasles_deaths")) 
+
+
 # merge all mortality
 # when downloading data, years with zero deaths are excluding as columns
 # All mortality data is 1996-2023, so change NAs here to 0
 mortality <- merge(measles_deaths, mumps_deaths, 
                    by = c("muni_code_6", "year"), all = TRUE) %>% 
   merge(whooping_deaths, by = c("muni_code_6", "year"), all = TRUE) %>% 
-  mutate(across(c(measles_deaths, mumps_deaths, whooping_deaths), ~replace_na(., 0)))
+  merge(nonmeasles_deaths, by = c("muni_code_6", "year"), all = TRUE) %>% 
+  mutate(across(c(measles_deaths, mumps_deaths, whooping_deaths, nonmeasles_deaths), ~replace_na(., 0))) # some of the CODs didnt have deaths in all years, so not included automatically until merging
 
 # check duplicates
 mortality %>%
   group_by(muni_code_6, year) %>%
   filter(n() > 1)
 
-rm(measles_deaths, mumps_deaths, whooping_deaths)
-
-
-
-
-
+rm(measles_deaths, mumps_deaths, whooping_deaths, nonmeasles_deaths)
 
 
 # healthcare
@@ -274,12 +307,27 @@ mmr_2023 <- read.csv("~/Brazil-measles/data/raw/vaccination/vaccines_2023.csv") 
          year = 2023) %>% 
   dplyr::select(muni_code_6, year, MMR2_coverage, MMR1_coverage)
 
+
+tetra <- read.delim("~/Brazil-measles/data/raw/vaccination/tetra_viral_coverage.csv",
+                    sep = ";", dec = ",", fileEncoding = "Latin1") %>% 
+  filter(Município != "Total" & !str_detect(Município, "EXTINTO")) %>% 
+  dplyr::select(-X.Total) %>% 
+  pivot_longer(cols = -"Município",
+               names_to = "year",
+               values_to = "tetra_coverage") %>% 
+  mutate(year = as.numeric(substr(year, 2, 5)),
+         muni_code_6 = substr(Município, 1, 6)) %>% 
+  dplyr::select(-Município)
+
+
+
 coverage <- merge(mono, mmr1, by = c("muni_code_6", "year"), all = TRUE) %>% 
   merge(mmr2, by = c("muni_code_6", "year"), all = TRUE) %>% 
+  merge(tetra, by = c("muni_code_6", "year"), all = TRUE) %>% 
   bind_rows(mmr_2023) %>% 
   mutate(muni_code_6 = as.numeric(muni_code_6))
 
-rm(mono, mmr1, mmr2, mmr_2023)
+rm(mono, mmr1, mmr2, mmr_2023, tetra)
 
 
 

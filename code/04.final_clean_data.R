@@ -51,7 +51,7 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
            year %in% 2000:2003 ~ monovalent_coverage + MMR1_coverage,
            TRUE ~ coverage),
          
-         coverage2 = ifelse(coverage2 > 200, NA, coverage2), # some municipalities reported ~7000% coverage for MMR2
+        # coverage2 = ifelse(coverage2 > 200, NA, coverage2), # some municipalities reported ~7000% coverage for MMR2
          
          goal = case_when(
            coverage2 >= 95 ~ 1,
@@ -80,6 +80,12 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
          MMR2_coverage_lag4 = dplyr::lag(MMR2_coverage, 4, order_by = year),
          MMR2_coverage_lag5 = dplyr::lag(MMR2_coverage, 5, order_by = year),
          MMR2_coverage_lag6 = dplyr::lag(MMR2_coverage, 6, order_by = year),
+         
+         tetra_coverage_lag2 = dplyr::lag(tetra_coverage, 2, order_by = year),
+         tetra_coverage_lag3 = dplyr::lag(tetra_coverage, 3, order_by = year),
+         tetra_coverage_lag4 = dplyr::lag(tetra_coverage, 4, order_by = year),
+         tetra_coverage_lag5 = dplyr::lag(tetra_coverage, 5, order_by = year),
+         tetra_coverage_lag6 = dplyr::lag(tetra_coverage, 6, order_by = year),
 
          birth_rate_lag2 = dplyr::lag(birth_rate, 2, order_by = year),
          birth_rate_lag3 = dplyr::lag(birth_rate, 3, order_by = year),
@@ -88,17 +94,18 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
          birth_rate_lag6 = dplyr::lag(birth_rate, 6, order_by = year)) %>% 
   ungroup() %>% 
   dplyr::select(muni_code, year, measles_cases,
-                coverage_lag2, coverage_lag3, coverage_lag4, coverage_lag5, coverage_lag6,
                 MMR1_coverage_lag2, MMR1_coverage_lag3, MMR1_coverage_lag4, MMR1_coverage_lag5, MMR1_coverage_lag6,
                 MMR2_coverage_lag2, MMR2_coverage_lag3, MMR2_coverage_lag4, MMR2_coverage_lag5, MMR2_coverage_lag6,
+                tetra_coverage_lag2, tetra_coverage_lag3, tetra_coverage_lag4, tetra_coverage_lag5, tetra_coverage_lag6,
                 goal_lag2, goal_lag3, goal_lag4, goal_lag5, goal_lag6,
-                measles_deaths, mumps_deaths, whooping_deaths, 
+                coverage_lag2, coverage_lag3, coverage_lag4, coverage_lag5, coverage_lag6,
+                measles_deaths, nonmeasles_deaths, mumps_deaths, whooping_deaths, 
                 birth_rate_lag2, birth_rate_lag3, birth_rate_lag4, birth_rate_lag5, birth_rate_lag6,
                 UBS_p100k, nurses_p100k, doctors_p100k,
                 pct_urban_2000, pct_urban_2010, 
                 pct_low_inc_2000, pct_low_inc_2010, 
                 educ_pct_8_yrs_2000, pct_complete_educ_2010, 
-                MMR1_coverage, MMR2_coverage, monovalent_coverage, coverage, coverage2, goal, 
+                MMR1_coverage, MMR2_coverage, tetra_coverage, monovalent_coverage, coverage, coverage2, goal, 
                 outbreak, measles_cases_p100k, measles_deaths_p100k,
                 sanitation, CDR, IMR, birth_rate, GDP_PC, GINI, MHDI, MHDI_E, MHDI_L, MHDI_I,
                 population, muni_code_6, muni_name, state_name, region)
