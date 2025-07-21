@@ -1,4 +1,6 @@
-data/
+data/geometry
+data/raw
+data/codebook.txt
 scratch_paper.R
 .DS_Store
 codebook.txt
