@@ -113,7 +113,7 @@ geom <- read_sf('~/Brazil-measles/data/geometry/brazil_muni_sf/BR_Municipios_202
          muni_code = as.numeric(muni_code),
          state_code = as.numeric(state_code)) %>% 
   filter(muni_code_6 != 430000) %>% # 4300001 and 4300002 are not in any other list, may not exactly be inhabited
-  dplyr::select(muni_code, muni_code_6, muni_name, state_name, state_code, region) %>% 
+  dplyr::select(muni_code, muni_code_6, muni_name, state_name, state_code, region, AREA_KM2) %>% 
   merge(poverty, by = "muni_code_6", all = TRUE) %>% # merge with all non-panel data
   merge(educ, by = "muni_code_6", all = TRUE) %>% 
   merge(urban, by = "muni_code_6", all = TRUE) %>% 

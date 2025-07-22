@@ -39,8 +39,17 @@ wide_incidence <- df %>%
 
 
 
-wide_mortality <- df %>% 
+wide_measles_mortality <- df %>% 
   mutate(mort = measles_deaths / population * 100000) %>% 
+  dplyr::select(muni_code, year, mort) %>% 
+  pivot_wider(names_from = year,
+              values_from = mort,
+              names_prefix = "X") %>%
+  dplyr::select(-c(X1996, X1997, X1998, X1999, X2000)) %>% 
+  right_join(geom, by = "muni_code")
+
+wide_nonmeasles_mortality <- df %>% 
+  mutate(mort = nonmeasles_deaths / population * 100000) %>% 
   dplyr::select(muni_code, year, mort) %>% 
   pivot_wider(names_from = year,
               values_from = mort,
@@ -58,12 +67,32 @@ wide_coverage <- df %>%
   right_join(geom, by = "muni_code")
 
 
+wide_MMR1_coverage <- df %>% 
+  dplyr::select(muni_code, year, MMR1_coverage) %>% 
+  pivot_wider(names_from = year,
+              values_from = MMR1_coverage,
+              names_prefix = "X") %>%
+  right_join(geom, by = "muni_code")
+
+wide_MMR2_coverage <- df %>% 
+  dplyr::select(muni_code, year, MMR2_coverage) %>% 
+  pivot_wider(names_from = year,
+              values_from = MMR2_coverage,
+              names_prefix = "X") %>%
+  right_join(geom, by = "muni_code")
+
+
 
 st_write(wide_incidence, "~/Brazil-measles/data/geometry/incidence/incidence.shp")
-st_write(wide_mortality, "~/Brazil-measles/data/geometry/mortality/mortality.shp")
+st_write(wide_measles_mortality, "~/Brazil-measles/data/geometry/mortality/measles_mortality.shp")
+st_write(wide_nonmeasles_mortality, "~/Brazil-measles/data/geometry/mortality/nonmeasles_mortality.shp")
+st_write(wide_incidence, "~/Brazil-measles/data/geometry/incidence/incidence.shp")
 st_write(wide_coverage, "~/Brazil-measles/data/geometry/coverage/coverage.shp")
+st_write(wide_MMR1_coverage, "~/Brazil-measles/data/geometry/coverage/MMR1_coverage.shp")
+st_write(wide_MMR2_coverage, "~/Brazil-measles/data/geometry/coverage/MMR2_coverage.shp")
 
-rm(wide_coverage, wide_incidence, wide_mortality, muni_data)
+rm(wide_coverage, wide_MMR1_coverage, wide_MMR2_coverage, wide_incidence, 
+   wide_measles_mortality, wide_nonmeasles_mortality, muni_data)
 
 # aggregate outbreak cases
 outbreak_13_15 <- df %>% 

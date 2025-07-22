@@ -28,37 +28,37 @@ reg_data <- df %>%
 #poiss <- glm(measles_cases ~ coverage_lag5 + year + region + offset(log(population)),
 #             family = poisson(link = "log"),
 #             data = reg_data) 
-#
+
 # check overdispersion
-#dispersiontest(poiss)
-# alpha much higher than 0 -> overdispersion -> do negative binomial
+#check_overdispersion(poiss)
+# do negative binomial
 #rm(poiss)
 
 
 # simple negative binomial models for different coverage lags
 nb_lag2 <- glmmTMB(measles_cases ~ coverage_lag2 + year + offset(log(population)), 
-                      family = nbinom2, 
-                      data = reg_data)
+                   family = nbinom2, 
+                   data = reg_data)
 #summary(nb_lag2)
 
 nb_lag3 <- glmmTMB(measles_cases ~ coverage_lag3 + year + offset(log(population)), 
-                      family = nbinom2, 
-                      data = reg_data)
+                   family = nbinom2, 
+                   data = reg_data)
 #summary(nb_lag3)
 
 nb_lag4 <- glmmTMB(measles_cases ~ coverage_lag4 + year + offset(log(population)), 
-                      family = nbinom2, 
-                      data = reg_data)
+                   family = nbinom2, 
+                   data = reg_data)
 #summary(nb_lag4)
 
 nb_lag5 <- glmmTMB(measles_cases ~ coverage_lag5 + year + offset(log(population)), 
-                      family = nbinom2, 
-                      data = reg_data)
+                   family = nbinom2, 
+                   data = reg_data)
 #summary(nb_lag5)
 
 nb_lag6 <- glmmTMB(measles_cases ~ coverage_lag6 + year + offset(log(population)), 
-                      family = nbinom2, 
-                      data = reg_data)
+                   family = nbinom2, 
+                   data = reg_data)
 #summary(nb_lag6)
 
 
@@ -105,12 +105,12 @@ rm(nb_lag2, nb_lag3, nb_lag4, nb_lag5, nb_lag6, pred_fun)
 # coverage lagged by 2 years (i.e coverage in 2008 for the year 2010) and 5 years look strongest
 # see other vaccines:
 mmr1_lag2 <- glmmTMB(measles_cases ~ MMR1_coverage_lag2 + year + offset(log(population)), 
-                   family = nbinom2, 
-                   data = reg_data)
+                     family = nbinom2, 
+                     data = reg_data)
 
 mmr1_lag5 <- glmmTMB(measles_cases ~ MMR1_coverage_lag5 + year + offset(log(population)), 
-                   family = nbinom2, 
-                   data = reg_data)
+                     family = nbinom2, 
+                     data = reg_data)
 
 mmr2_lag2 <- glmmTMB(measles_cases ~ MMR2_coverage_lag2 + year + offset(log(population)), 
                      family = nbinom2, 
@@ -119,7 +119,6 @@ mmr2_lag2 <- glmmTMB(measles_cases ~ MMR2_coverage_lag2 + year + offset(log(popu
 mmr2_lag5 <- glmmTMB(measles_cases ~ MMR2_coverage_lag5 + year + offset(log(population)), 
                      family = nbinom2, 
                      data = reg_data)
-
 
 
 mmr1_lag2_pred <- predict_response(mmr1_lag2,
@@ -177,101 +176,4 @@ rm(mmr1_lag2_pred, mmr1_lag5_pred, mmr2_lag2_pred, mmr2_lag5_pred,
    mmr1_lag2, mmr1_lag5, mmr2_lag2, mmr2_lag5, preds, lag_models)
 
 
-
-
-# testing only including outbreak years
-outbreak <- reg_data %>% 
-  filter(outbreak != "0")
-
-nb_ob_simple <- glmmTMB(measles_cases ~ MMR2_coverage_lag5 + year +
-                       offset(log(population)), 
-                     family = nbinom2, 
-                     data = outbreak)
-summary(nb_ob_simple)
-# doesn't seem to change much
-
-
-# add fixed effects for state
-nb_fe <- glmmTMB(measles_cases ~ MMR2_coverage_lag5 + year + state_name + offset(log(population)), 
-                      family = nbinom2, 
-                      data = reg_data)
-summary(nb_fe)
-
-# some performance checks - R2
-null_mod <- glmmTMB(measles_cases ~ 1 + offset(log(population)), 
-                      family = nbinom2, data = reg_data)
-
-1 - (as.numeric(logLik(nb_fe)) / as.numeric(logLik(null_mod)))
-
-
-
-
-# add some more coefficients
-nb_full <- glmmTMB(measles_cases ~ MMR2_coverage_lag2 + log(GDP_PC) + birth_rate_lag2 +
-                pct_urban_2010 + MHDI + UBS_p100k + doctors_p100k + sanitation +
-                year + region + offset(log(population)), 
-              family = nbinom2, 
-              data = reg_data)
-summary(nb_full)
-
-1 - (as.numeric(logLik(nb_full)) / as.numeric(logLik(null_mod)))
-
-
-predict_response(nb_full,
-                 terms = c("MMR2_coverage_lag2 [0:100]", "birth_rate_lag2"), 
-                 type = "count", 
-                 condition = c(population = 100000, year = 2019), # ref as year w/ most cases
-                 interval = "confidence") %>%
-  rename(coverage_lag2 = x, birth_rate_lag2 = group) %>% 
-  ggplot(aes(x = coverage_lag2, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = birth_rate_lag2), alpha = 0.2) +
-  geom_line(aes(color = birth_rate_lag2)) +
-  scale_y_log10()
-
-
-
-
-
-
-# moving on to predicting coverage
-
-lm <- lm(MMR2_coverage ~ measles_cases + IMR + MHDI + log(GDP_PC) + pct_urban_2010 + 
-            outbreak + region + UBS_p100k + CDR + sanitation + GINI + pct_complete_educ_2010,
-              data = reg_data %>% filter(MMR2_coverage < 200))
-
-summary(lm)
-
-
-pred_df <- reg_data[, c("MMR2_coverage", "measles_cases", "IMR", "MHDI", "GDP_PC", 
-                                "pct_urban_2010", "outbreak", "region", "UBS_p100k", 
-                                "CDR", "sanitation", "GINI", "pct_complete_educ_2010")] %>% 
-  filter(MMR2_coverage < 200) %>% 
-  na.omit() %>% 
-  mutate(fit = predict(lm, se.fit = TRUE)$fit,
-         se = predict(lm, se.fit = TRUE)$se.fit,
-         lower.ci = fit - 1.96 * se,
-         upper.ci = fit + 1.96 * se)
-
-
-ggplot(pred_df, aes(x = MHDI, y = fit, color = region)) +
-  geom_pointrange(aes(ymin = lower.ci, ymax = upper.ci), , alpha = 0.5, size = 0.2) +
-  labs(x = "human development index", y = "adjusted MMR2 coverage")
-
-# not entirely sure what to do with this
-
-
-# Xia et el.
-reg_data <- reg_data %>% 
-  group_by(muni_code) %>% 
-  mutate(measles_cases_p100k_lag2 = dplyr::lag(measles_cases_p100k, 2, order_by = year),
-         measles_cases_p100k_lag3 = dplyr::lag(measles_cases_p100k, 3, order_by = year),
-         measles_cases_p100k_lag4 = dplyr::lag(measles_cases_p100k, 4, order_by = year)) %>% 
-  ungroup()
-
-nb_nonmeasles <- glmmTMB(nonmeasles_deaths ~ measles_cases_p100k_lag2 + measles_cases_p100k_lag3 +
-                           measles_cases_p100k_lag4 + year + region + offset(log(population)), 
-              family = nbinom2, 
-              data = reg_data)
-summary(nb_nonmeasles)
-
-
+# let's just go with MMR2 lag2 for now
