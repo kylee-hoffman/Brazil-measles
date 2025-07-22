@@ -31,7 +31,8 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
             by = c("muni_code_6", "year")) %>% 
   left_join(geom, by = "muni_code_6") %>% 
   filter(muni_code != 5101837) %>%  # does not seem to have any inhabitants
-  mutate(measles_cases_p100k = measles_cases / population * 100000,
+  mutate(pop_density = population / AREA_KM2,
+         measles_cases_p100k = measles_cases / population * 100000,
          measles_deaths_p100k = measles_deaths / population * 100000,
          UBS_p100k = UBS / population * 100000,
          nurses_p100k = nurses / population * 100000,
@@ -102,6 +103,7 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
                 measles_deaths, nonmeasles_deaths, mumps_deaths, whooping_deaths, 
                 birth_rate_lag2, birth_rate_lag3, birth_rate_lag4, birth_rate_lag5, birth_rate_lag6,
                 UBS_p100k, nurses_p100k, doctors_p100k,
+                pop_density,
                 pct_urban_2000, pct_urban_2010, 
                 pct_low_inc_2000, pct_low_inc_2010, 
                 educ_pct_8_yrs_2000, pct_complete_educ_2010, 
