@@ -1,7 +1,12 @@
-data/
+data/geometry/
+data/raw/
+data/basics_master_data.RData
+data/health_data.RData
+data/muni_pop_96_23.RData
+data/SES_data.RData
 scratch_paper.R
 .DS_Store
-codebook.txt
+data/codebook.txt
 code/2025.06.30.2_clean_brazil_data.RData
 codebook.R
 code/prelim_analysis.R
