@@ -26,7 +26,7 @@ basics_data <- basics_data %>%
               MHDI, MHDI_E, MHDI_L, MHDI_I, birth_rate)
 
 # merge all data
-data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE) %>% 
+df <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE) %>% 
   left_join(basics_data %>% mutate(year = as.numeric(as.character(year))),
             by = c("muni_code_6", "year")) %>% 
   left_join(geom, by = "muni_code_6") %>% 
@@ -42,86 +42,81 @@ data_clean <- merge(health_data, pop, by = c("muni_code_6", "year"), all = TRUE)
            year %in% 2018:2021 ~ "2018-2021",
            TRUE ~ "0"),
          
-         coverage = case_when(
-           year < 2000 ~ monovalent_coverage,
-           year %in% 2000:2003 ~ pmax(monovalent_coverage, MMR1_coverage, na.rm = T),
-           year %in% 2004:2012 ~ MMR1_coverage,
-           TRUE ~ MMR2_coverage),
+         coverage_dose1 = ifelse(is.na(monovalent_coverage) & is.na(MMR1_coverage), NA_real_, 
+                                 rowSums(cbind(monovalent_coverage, MMR1_coverage), na.rm = TRUE)),
          
-         coverage2 = case_when(
-           year %in% 2000:2003 ~ monovalent_coverage + MMR1_coverage,
-           TRUE ~ coverage),
+         coverage_dose2 = ifelse(is.na(MMR2_coverage) & is.na(tetra_coverage), NA_real_, 
+                                 rowSums(cbind(MMR2_coverage, tetra_coverage), na.rm = TRUE)),
          
-        # coverage2 = ifelse(coverage2 > 200, NA, coverage2), # some municipalities reported ~7000% coverage for MMR2
-         
-         goal = case_when(
-           coverage2 >= 95 ~ 1,
-           TRUE ~ 0)) %>% 
+         goal = ifelse(coverage_dose2 >= 95, 1, 0)) %>% 
   group_by(muni_code) %>% 
-  mutate(coverage_lag2 = dplyr::lag(coverage2, 2, order_by = year),
-         coverage_lag3 = dplyr::lag(coverage2, 3, order_by = year),
-         coverage_lag4 = dplyr::lag(coverage2, 4, order_by = year),
-         coverage_lag5 = dplyr::lag(coverage2, 5, order_by = year),
-         coverage_lag6 = dplyr::lag(coverage2, 6, order_by = year),
+  mutate(coverage_dose1_lag1 = dplyr::lag(coverage_dose1, 1, order_by = year),
+         coverage_dose1_lag2 = dplyr::lag(coverage_dose1, 2, order_by = year),
+         coverage_dose1_lag3 = dplyr::lag(coverage_dose1, 3, order_by = year),
+         coverage_dose1_lag4 = dplyr::lag(coverage_dose1, 4, order_by = year),
+         coverage_dose1_lag5 = dplyr::lag(coverage_dose1, 5, order_by = year),
+         coverage_dose1_lag6 = dplyr::lag(coverage_dose1, 6, order_by = year),
+         coverage_dose1_lag7 = dplyr::lag(coverage_dose1, 7, order_by = year),
+         coverage_dose1_lag8 = dplyr::lag(coverage_dose1, 8, order_by = year),
+         coverage_dose1_lag9 = dplyr::lag(coverage_dose1, 9, order_by = year),
          
+         coverage_dose2_lag1 = dplyr::lag(coverage_dose2, 1, order_by = year),
+         coverage_dose2_lag2 = dplyr::lag(coverage_dose2, 2, order_by = year),
+         coverage_dose2_lag3 = dplyr::lag(coverage_dose2, 3, order_by = year),
+         coverage_dose2_lag4 = dplyr::lag(coverage_dose2, 4, order_by = year),
+         coverage_dose2_lag5 = dplyr::lag(coverage_dose2, 5, order_by = year),
+         coverage_dose2_lag6 = dplyr::lag(coverage_dose2, 6, order_by = year),
+         coverage_dose2_lag7 = dplyr::lag(coverage_dose2, 7, order_by = year),
+         coverage_dose2_lag8 = dplyr::lag(coverage_dose2, 8, order_by = year),
+         coverage_dose2_lag9 = dplyr::lag(coverage_dose2, 9, order_by = year),
+         
+         goal_lag1 = dplyr::lag(goal, 1, order_by = year),
          goal_lag2 = dplyr::lag(goal, 2, order_by = year),
          goal_lag3 = dplyr::lag(goal, 3, order_by = year),
          goal_lag4 = dplyr::lag(goal, 4, order_by = year),
          goal_lag5 = dplyr::lag(goal, 5, order_by = year),
          goal_lag6 = dplyr::lag(goal, 6, order_by = year),
+         goal_lag7 = dplyr::lag(goal, 7, order_by = year),
+         goal_lag8 = dplyr::lag(goal, 8, order_by = year),
+         goal_lag9 = dplyr::lag(goal, 9, order_by = year),
          
-         MMR1_coverage_lag2 = dplyr::lag(MMR1_coverage, 2, order_by = year),
-         MMR1_coverage_lag3 = dplyr::lag(MMR1_coverage, 3, order_by = year),
-         MMR1_coverage_lag4 = dplyr::lag(MMR1_coverage, 4, order_by = year),
-         MMR1_coverage_lag5 = dplyr::lag(MMR1_coverage, 5, order_by = year),
-         MMR1_coverage_lag6 = dplyr::lag(MMR1_coverage, 6, order_by = year),
-
-         MMR2_coverage_lag2 = dplyr::lag(MMR2_coverage, 2, order_by = year),
-         MMR2_coverage_lag3 = dplyr::lag(MMR2_coverage, 3, order_by = year),
-         MMR2_coverage_lag4 = dplyr::lag(MMR2_coverage, 4, order_by = year),
-         MMR2_coverage_lag5 = dplyr::lag(MMR2_coverage, 5, order_by = year),
-         MMR2_coverage_lag6 = dplyr::lag(MMR2_coverage, 6, order_by = year),
-         
-         tetra_coverage_lag2 = dplyr::lag(tetra_coverage, 2, order_by = year),
-         tetra_coverage_lag3 = dplyr::lag(tetra_coverage, 3, order_by = year),
-         tetra_coverage_lag4 = dplyr::lag(tetra_coverage, 4, order_by = year),
-         tetra_coverage_lag5 = dplyr::lag(tetra_coverage, 5, order_by = year),
-         tetra_coverage_lag6 = dplyr::lag(tetra_coverage, 6, order_by = year),
-
+         birth_rate_lag1 = dplyr::lag(birth_rate, 1, order_by = year),
          birth_rate_lag2 = dplyr::lag(birth_rate, 2, order_by = year),
          birth_rate_lag3 = dplyr::lag(birth_rate, 3, order_by = year),
          birth_rate_lag4 = dplyr::lag(birth_rate, 4, order_by = year),
          birth_rate_lag5 = dplyr::lag(birth_rate, 5, order_by = year),
-         birth_rate_lag6 = dplyr::lag(birth_rate, 6, order_by = year)) %>% 
+         birth_rate_lag6 = dplyr::lag(birth_rate, 6, order_by = year),
+         birth_rate_lag7 = dplyr::lag(birth_rate, 7, order_by = year),
+         birth_rate_lag8 = dplyr::lag(birth_rate, 8, order_by = year),
+         birth_rate_lag9 = dplyr::lag(birth_rate, 9, order_by = year)) %>% 
   ungroup() %>% 
   dplyr::select(muni_code, year, measles_cases,
-                MMR1_coverage_lag2, MMR1_coverage_lag3, MMR1_coverage_lag4, MMR1_coverage_lag5, MMR1_coverage_lag6,
-                MMR2_coverage_lag2, MMR2_coverage_lag3, MMR2_coverage_lag4, MMR2_coverage_lag5, MMR2_coverage_lag6,
-                tetra_coverage_lag2, tetra_coverage_lag3, tetra_coverage_lag4, tetra_coverage_lag5, tetra_coverage_lag6,
-                goal_lag2, goal_lag3, goal_lag4, goal_lag5, goal_lag6,
-                coverage_lag2, coverage_lag3, coverage_lag4, coverage_lag5, coverage_lag6,
+                coverage_dose1, coverage_dose2,
                 measles_deaths, nonmeasles_deaths, mumps_deaths, whooping_deaths, 
-                birth_rate_lag2, birth_rate_lag3, birth_rate_lag4, birth_rate_lag5, birth_rate_lag6,
+                coverage_dose1_lag1, coverage_dose1_lag2, coverage_dose1_lag3, coverage_dose1_lag4, coverage_dose1_lag5, 
+                coverage_dose1_lag6, coverage_dose1_lag7, coverage_dose1_lag8, coverage_dose1_lag9,
+                coverage_dose2_lag1, coverage_dose2_lag2, coverage_dose2_lag3, coverage_dose2_lag4, coverage_dose2_lag5, 
+                coverage_dose2_lag6, coverage_dose2_lag7, coverage_dose2_lag8, coverage_dose2_lag9,
+                birth_rate_lag1, birth_rate_lag2, birth_rate_lag3, birth_rate_lag4, birth_rate_lag5, 
+                birth_rate_lag6, birth_rate_lag7, birth_rate_lag8, birth_rate_lag9,
+                goal_lag1, goal_lag2, goal_lag3, goal_lag4, goal_lag5, goal_lag6, goal_lag7, goal_lag8, goal_lag9,
                 UBS_p100k, nurses_p100k, doctors_p100k,
-                pop_density,
-                pct_urban_2000, pct_urban_2010, 
-                pct_low_inc_2000, pct_low_inc_2010, 
-                educ_pct_8_yrs_2000, pct_complete_educ_2010, 
-                MMR1_coverage, MMR2_coverage, tetra_coverage, monovalent_coverage, coverage, coverage2, goal, 
+                pop_density,pct_urban_2000, pct_urban_2010, 
+                pct_low_inc_2000, pct_low_inc_2010, educ_pct_8_yrs_2000, pct_complete_educ_2010, 
+                MMR1_coverage, MMR2_coverage, tetra_coverage, monovalent_coverage, goal, 
                 outbreak, measles_cases_p100k, measles_deaths_p100k,
                 sanitation, CDR, IMR, birth_rate, GDP_PC, GINI, MHDI, MHDI_E, MHDI_L, MHDI_I,
                 population, muni_code_6, muni_name, state_name, region)
 
 
 # check duplicates
-data_clean %>%
+df %>%
   group_by(muni_code, year) %>%
   filter(n() > 1)
 
 # check muni codes...
-which(!data_clean$muni_code %in% geom$muni_code)
+which(!df$muni_code %in% geom$muni_code)
 
-df <- data_clean
-rm(data_clean, basics_data)
+rm(basics_data)
 
 save(df, file = "~/Brazil-measles/data/clean_brazil_data.RData")
