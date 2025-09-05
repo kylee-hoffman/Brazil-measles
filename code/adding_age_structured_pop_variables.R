@@ -7,6 +7,8 @@ rm(list=ls())
 setwd("/Users/simoncooper/Documents/measles")
 getwd()
 
+## Adding live births.
+
 # Live births.
 live_births <- read_csv2("~/Documents/measles/live_births.csv",
                          skip = 3,        
@@ -22,6 +24,7 @@ live_births <- read_csv2("~/Documents/measles/live_births.csv",
          births = as.numeric(births)) %>%
   filter(!is.na(muni_code))
   
+## Adding age-structured population.
 
 # Population under one.
 pop_U1 <- read_csv2("~/Documents/measles/less_than_one.csv",
@@ -198,6 +201,7 @@ pop_ten <- read_csv2("~/Documents/measles/ten.csv",
          pop_ten = as.numeric(pop_ten)) %>%
   filter(!is.na(muni_code))
   
+## Adding infant deaths.
 
 # Deaths before 6 months.
 deaths_U6mo <- read_csv2("~/Documents/measles/deaths_before_6months.csv",
@@ -213,7 +217,51 @@ deaths_U6mo <- read_csv2("~/Documents/measles/deaths_before_6months.csv",
   mutate(year = as.numeric(gsub("[^0-9]", "", year)),
          deaths_U6mo = as.numeric(deaths_U6mo)) %>%
   filter(!is.na(muni_code))
-  
+
+## Adding measles cases under age 10.
+
+# Measles cases under age 10 from 2001 through 2006.
+cases_u10_2001to2006 <- read_csv2("/Users/simoncooper/Documents/measles/cases_u10_2001to2006.csv",
+                              skip = 4,        
+                              n_max = 5603,
+                              locale = locale(encoding = "Latin1")) %>%
+  rename(muni_code = 1) %>%
+  mutate(muni_code = as.numeric(gsub("[^0-9]", "", muni_code)),
+         muni_code_6 = as.numeric(substr(muni_code, 1, 6))) %>%
+  pivot_longer(cols = -c(muni_code, muni_code_6),
+               names_to = "year",
+               values_to = "measles_cases_u10") %>%
+  mutate(year = as.numeric(gsub("[^0-9]", "", year)),
+         measles_cases_u10 = as.numeric(case_when(
+           measles_cases_u10 == "-" ~ "0",
+           TRUE ~ measles_cases_u10))) %>%
+  filter(!is.na(muni_code_6)) %>%
+  select(muni_code_6, year, measles_cases_u10)
+
+# Measles cases under age 10 from 2007 through 2024.
+cases_u10_2007to2024 <- read_csv2("/Users/simoncooper/Documents/measles/cases_u10_2007to2024.csv",
+                                  skip = 4,        
+                                  n_max = 5603,
+                                  locale = locale(encoding = "Latin1")) %>%
+  rename(muni_code = 1) %>%
+  mutate(muni_code = as.numeric(gsub("[^0-9]", "", muni_code)),
+         muni_code_6 = as.numeric(substr(muni_code, 1, 6))) %>%
+  pivot_longer(cols = -c(muni_code, muni_code_6),
+               names_to = "year",
+               values_to = "measles_cases_u10") %>%
+  mutate(year = as.numeric(gsub("[^0-9]", "", year)),
+         measles_cases_u10 = as.numeric(case_when(
+           measles_cases_u10 == "-" ~ "0",
+           TRUE ~ measles_cases_u10))) %>%
+  filter(!is.na(muni_code_6),
+         year >= 2007 & year <= 2024) %>% 
+  select(muni_code_6, year, measles_cases_u10)
+
+cases_u10_combined <- bind_rows(
+  cases_u10_2001to2006,
+  cases_u10_2007to2024
+)
+
 # Confirming muni_code and year uniquely identify all rows in all datasets.
 datasets <- list(
   live_births = live_births,
@@ -227,8 +275,9 @@ datasets <- list(
   pop_seven = pop_seven,
   pop_eight = pop_eight,
   pop_nine = pop_nine,
-  deaths_U6mo = deaths_U6mo
-)
+  deaths_U6mo = deaths_U6mo,
+  cases_u10_combined = cases_u10_combined
+  )
 sapply(datasets, function(df) c(total = nrow(df), unique = nrow(unique(df[c("muni_code_6", "year")]))))
 
 # Combining datasets into one.
@@ -263,5 +312,12 @@ df <- df %>%
   mutate(muni_code = muni_code.x) %>%
   select(-muni_code.x)
 
-save(df, file = "clean_brazil_data.RData")
+# Removing duplicate variables.
+vars_to_remove <- c("pop_U1.y", "pop_one.y", "pop_two.y", "pop_three.y", "pop_four.y", "pop_five.y", "pop_six.y", "pop_seven.y", "pop_eight.y", "pop_nine.y", "muni_code.y.y", "deaths_U6mo.y")
+df <- df %>%
+  select(-all_of(vars_to_remove))
 
+df <- df %>%
+  rename_with(~ gsub("\\.x$", "", .x))
+
+save(df, file = "clean_brazil_data.RData")
