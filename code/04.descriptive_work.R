@@ -12,7 +12,7 @@ library(scales)
 ## age-specific incidence
 ##
 ################################################################################
-pop <- read.delim("/Users/kyhoff/brazil_measles/data/pop_data/age_structured_pop_ibge_cnv_popsvs2024b.csv",
+pop <- read.delim("~/Brazil-measles/data/pop_data/age_structured_pop_ibge_cnv.csv",
                   sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 11) %>% 
   clean_names() %>% 
   pivot_longer(cols = -"faixa_etaria_1", names_to = "year", values_to = "pop") %>% 
@@ -142,8 +142,7 @@ rm(list = ls())
 ################################################################################
 load('~/brazil_measles/generated_data/muni-year_panel_02-24.RData')
 
-df <- df %>% mutate(mcv_d1_cov_tc = pmin(df$mcv_d1_cov, 100),
-                    mcv_d1_cov_tc_lag2 = pmin(df$mcv_d1_cov_lag2, 100)) # top coded to 100
+
 
 
 theme1 <- theme_minimal(base_size = 14, base_family = "Myriad Pro") +
