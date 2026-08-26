@@ -5,122 +5,209 @@ library(tsibble)
 library(ggeffects)
 library(feasts)
 
+source("~/Brazil-measles/code/utils.R")
 
-cases <- bind_rows(read.delim("/Users/kyhoff/Downloads/sinanwin_cnv_exantbr173817136_25_170_168.csv", 
-           sep = ";", fileEncoding = "Latin1", skip = 5, nrow = 7) %>%
-  clean_names() %>%
-  filter(regiao_de_residencia == "Total") %>% # no ignored region cases
-  select(-total) %>% 
-  mutate(x2004 = "0") %>%
-  pivot_longer(cols = -regiao_de_residencia, values_to = "measles_cases", names_to = "year") %>% 
-  mutate(year = as.numeric(substr(year, 2, 5)),
-         measles_cases = as.numeric(measles_cases)) %>% 
-  select(-regiao_de_residencia),
-  
-  read.delim("/Users/kyhoff/Downloads/sinannet_cnv_exantbr174245136_25_170_168.csv", 
-                          sep = ";", fileEncoding = "Latin1", skip = 5, nrow = 7) %>%
-  clean_names() %>%
-  filter(!str_detect(regiao_de_residencia, "Igno|Tot")) %>% 
-  select(-c(total, em_branco_ign, x2001, x2006)) %>% 
-  mutate(across(starts_with("x"), as.numeric)) %>%
-  pivot_longer(cols = -regiao_de_residencia, values_to = "measles_cases", names_to = "year") %>% 
-  mutate(year = as.numeric(substr(year, 2, 5))) %>% 
-  group_by(year ) %>% 
-  reframe(year = unique(year),
-          measles_cases = sum(measles_cases, na.rm = T)))
+load('~/Brazil-measles/data/analysis_data.RData')
 
 
 # Deaths by Residence by Year of Death according to Region,
 # ICD-10 Category: C25 Malignant neoplasm of the pancreas,
 # Period: 2000-2024
-panc <- read.delim("/Users/kyhoff/Downloads/sim_cnv_obt10uf170542136_25_170_168.csv", 
-                 sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 7) %>%
-  clean_names() %>%
-  filter(regiao == "Total") %>% # no region ignored cases
-  select(-total) %>% 
-  pivot_longer(cols = -regiao, values_to = "pancreatic_deaths", names_to = "year") %>% 
-  mutate(year = as.numeric(substr(year, 2, 5)),
-         pancreatic_deaths = as.numeric(pancreatic_deaths)) %>% 
-  select(-regiao)
+panc <- read_datasus("~/Brazil-measles/data/mortality/pancreatic_cancer_sim_cnv.csv",
+             line_skip = 4, drop_cols = "total", values_to = "pancreatic_deaths") 
+
 
 # Deaths by Residence by Year of Death according to Region.
-# ICD-10 Group: Malignant neoplasms of the lip, oral cavity and pharynx; Malignant neoplasms of the digestive organs; Malignant neoplasms of bones and articular cartilage; Melanoma and other malignant neoplasms of the skin; Malignant neoplasms of the breast; Malignant neoplasms of the female genital organs; Malignant neoplasms of the male genital organs; Malignant neoplasms of the urinary tract; Malignant neoplasms of the thyroid and other endocrine glands.
-# Period: 2000-2024
-cancer <- read.delim("/Users/kyhoff/Downloads/sim_cnv_obt10uf185631136_25_170_168.csv", 
-                   sep = ";", fileEncoding = "Latin1", skip = 4, nrow = 7) %>%
-  clean_names() %>%
-  filter(regiao == "Total") %>% # no region ignored cases
-  select(-total) %>% 
-  pivot_longer(cols = -regiao, values_to = "cancer_deaths", names_to = "year") %>% 
-  mutate(year = as.numeric(substr(year, 2, 5)),
-         cancer_deaths = as.numeric(cancer_deaths)) %>% 
-  select(-regiao)
+# ICD-10 Group: 
+# Malignant neoplasms of the lip, 
+# oral cavity and pharynx, 
+# Malignant neoplasms of the digestive organs,
+# Malignant neoplasms of the respiratory tract and intrathoracic organs,
+# Malignant neoplasms of bones and articular cartilage,
+# Melanoma and other malignant neoplasms of the skin, 
+# Malignant neoplasms of mesothelial tissue and soft tissues, 
+# Malignant neoplasms of the breast, 
+# Malignant neoplasms of the female genital organs, 
+# Malignant neoplasms of the male genital organs, 
+# Malignant neoplasms of the urinary tract,
+# Malignant neoplasms of the eyes, brain and other parts of the central nervous system, 
+# Malignant neoplasms of the thyroid and other endocrine glands, 
+# Malignant neoplasms of the maldefined, 
+# secondary and nonspecific sites,
+# Malignant neoplasms of lymphatic,
+# hematopoietic and related tissues, 
+# Malignant neoplasms of multiple independent sites (primary).
+# Period: 2000-2025
+cancer <- read_datasus("~/Brazil-measles/data/mortality/all_cancer_sim_cnv.csv",
+                       line_skip = 5, drop_cols = "total", values_to = "cancer_deaths") 
 
 
-# Resident Population - Study of Population Estimates by Municipality, Age and Sex 2000-2025 - Brazil
-# Resident population by year according to region
-# Period: 2001-2024
-pop <- read.delim("/Users/kyhoff/Downloads/ibge_cnv_popsvs2024br182510136_25_170_168.csv", 
-                   sep = ";", fileEncoding = "Latin1", skip = 3, nrow = 7) %>%
-  clean_names() %>%
-  filter(regiao == "Total") %>% # no region ignored cases
-  pivot_longer(cols = -regiao, values_to = "pop", names_to = "year") %>% 
-  mutate(year = as.numeric(substr(year, 2, 5)),
-         pop = as.numeric(pop)) %>% 
-  select(-regiao)
+dat <- df %>% merge(panc, by = c("muni_code_6", "year")) %>% 
+  merge(cancer, by = c("muni_code_6", "year")) %>% 
+  mutate(pancreatic_mx = pancreatic_deaths / pop_total * 1000,
+         cancer_mx = cancer_deaths / pop_total * 1000)
+
+
+cor.test(dat$mv_incid_total, dat$cancer_mx)      # -0.01037754 
+cor.test(dat$mv_incid_total_lag1, dat$cancer_mx) # -0.01061673
+cor.test(dat$mv_incid_total_lag2, dat$cancer_mx) # -0.008021512
+cor.test(dat$mv_incid_total_lag3, dat$cancer_mx) # -0.00378682
+cor.test(dat$mv_incid_total_lag4, dat$cancer_mx) #  0.002069004
+cor.test(dat$mv_incid_total_lag5, dat$cancer_mx) # -0.007480575
+
+
+cor.test(dat$mv_incid_total, dat$pancreatic_mx)      # -0.002775584
+cor.test(dat$mv_incid_total_lag1, dat$pancreatic_mx) # -0.004472342
+cor.test(dat$mv_incid_total_lag2, dat$pancreatic_mx) # -0.000403031  
+cor.test(dat$mv_incid_total_lag3, dat$pancreatic_mx) #  0.001001683
+cor.test(dat$mv_incid_total_lag4, dat$pancreatic_mx) #  0.002054092
+cor.test(dat$mv_incid_total_lag5, dat$pancreatic_mx) # -0.002564923
+
+
+m0 <- glm.nb(cancer_deaths ~ mv_incid_total + region + year + offset(log(pop_total)),
+             data = dat)
+
+m1 <- glm.nb(cancer_deaths ~ mv_incid_total_lag1 + region + year + offset(log(pop_total)),
+             data = dat)
+
+m2 <- glm.nb(cancer_deaths ~ mv_incid_total_lag2 + region + year + offset(log(pop_total)),
+             data = dat)
+
+m3 <- glm.nb(cancer_deaths ~ mv_incid_total_lag3 + region + year + offset(log(pop_total)),
+             data = dat)
+
+m4 <- glm.nb(cancer_deaths ~ mv_incid_total_lag4 + region + year + offset(log(pop_total)),
+             data = dat)
+
+m5 <- glm.nb(cancer_deaths ~ mv_incid_total_lag5 + region + year + offset(log(pop_total)),
+             data = dat)
+
+
+lag0_pred <- predict_response(m0, 
+                              terms = list(mv_incid_total = seq(0, 10, by = 1)), 
+                              margin = "mean_mode", 
+                              ci_level = 0.95,
+                              type = "count", 
+                              condition = c(pop_total = 1000)) %>% data.frame() 
+
+lag1_pred <- predict_response(m1, 
+                              terms = list(mv_incid_total_lag1 = seq(0, 10, by = 1)), 
+                              margin = "mean_mode", 
+                              ci_level = 0.95,
+                              type = "count", 
+                              condition = c(pop_total = 1000)) %>% data.frame() 
+
+lag2_pred <- predict_response(m2, 
+                              terms = list(mv_incid_total_lag2 = seq(0, 10, by = 1)), 
+                              margin = "mean_mode", 
+                              ci_level = 0.95,
+                              type = "count", 
+                              condition = c(pop_total = 1000)) %>% data.frame() 
+
+lag3_pred <- predict_response(m3, 
+                              terms = list(mv_incid_total_lag3 = seq(0, 10, by = 1)), 
+                              margin = "mean_mode", 
+                              ci_level = 0.95,
+                              type = "count", 
+                              condition = c(pop_total = 1000)) %>% data.frame() 
+
+lag4_pred <- predict_response(m4, 
+                              terms = list(mv_incid_total_lag4 = seq(0, 10, by = 1)), 
+                              margin = "mean_mode", 
+                              ci_level = 0.95,
+                              type = "count", 
+                              condition = c(pop_total = 1000)) %>% data.frame() 
+
+lag5_pred <- predict_response(m5, 
+                              terms = list(mv_incid_total_lag5 = seq(0, 10, by = 1)), 
+                              margin = "mean_mode", 
+                              ci_level = 0.95,
+                              type = "count", 
+                              condition = c(pop_total = 1000)) %>% data.frame() 
 
 
 
-data <- merge(cases, panc, by = "year") %>%
-  merge(pop, by = "year") %>%
-  merge(cancer, by = "year") %>% 
-  mutate(pancreatic_deaths_p100k = pancreatic_deaths / pop * 100000,
-         cancer_deaths_p100k = cancer_deaths / pop * 100000,
-         measles_incidence_p100k = measles_cases / pop * 100000) %>% 
-  as_tsibble(index = year)
+
+theme <- theme_bw(base_family = "Myriad Pro", base_size = 12) +
+  theme(text = element_text(color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(color = "black", linewidth = 0.3),
+        axis.ticks.x = element_line(size = 0.3, color = "black"),
+        axis.ticks.y = element_blank(),
+        plot.margin=margin(t = 4, r = 3, b = 4, l = 3, unit = "mm"),
+        legend.background = element_blank())
 
 
-data %>%  
-  CCF(y = cancer_deaths_p100k, x = measles_incidence_p100k, type = "correlation", lag_max = 5) %>% 
-  mutate(lag = as.numeric(str_sub(lag, end = -2))) %>% 
-  ggplot(aes(x = lag, y = ccf)) +
-  geom_hline(aes(yintercept = 0.409), linetype = "dashed", linewidth = 0.6) +
-  geom_point(aes(fill = as.factor(lag)), size = 2.25, shape = 21, stroke = 0.2) +
-  coord_cartesian(xlim = c(0, 5), ylim = c(0.01, 0.5)) +
-  labs(y = "Correlation", x = "Years lagged") + #, title = "Correlation b/w total annual mean ID mx and annual mean MV incid") +
-  theme_bw(base_size=12, base_family = "Myriad Pro") + 
-  theme(plot.title = element_text(size = 7),
-        axis.title = element_text(size = 12),
-        axis.text = element_text(size = 11, color = "black"),
-        axis.ticks = element_line(linewidth=0.3),
-        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        legend.position = "none",
-        plot.margin=margin(0.2,0.2,0,0.5, unit = "mm"))
-
-data %>% 
-  ggplot(aes(x=dplyr::lag(measles_incidence_p100k, 1), y=cancer_deaths_p100k)) +
-  geom_point(size = 2) + 
-  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10), labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) + 
-#  coord_cartesian(xlim = c(0.00073, 7.1)) +
- # labs(x= "Measles incidence per 100,000", y = NULL) +
-  geom_smooth(method = "lm", fill = "#94D4D2", color = "#8ebfbe", linewidth = 0.8)
+lag0_p <- lag0_pred %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="gray60", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Measles cases per 1,000", y = "Cancer deaths per 1,000") +
+  coord_cartesian(ylim = c(0.15, 1.2), xlim = c(0.4, 9.6)) +
+  scale_y_continuous(breaks = c(0.2, 0.4, 0.6, 0.8)) +
+  theme + theme(axis.text.y = element_text(size = 12, color = "black"),
+                axis.title.y = element_text(size = 12, color = "black"),
+                axis.ticks.y = element_line(size = 0.3, color = "black"))
 
 
+lag1_p <- lag1_pred %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="gray60", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Measles cases 1 year prior", y = NULL) +
+  coord_cartesian(ylim = c(0.15, 1.2), xlim = c(0.4, 9.6)) +
+  theme
 
-data %>% ggplot(aes(x=measles_incidence_p100k,y=pancreatic_deaths_p100k,color=year)) + geom_point() +
-  scale_x_log10() + scale_y_log10() + 
-  geom_smooth(method = "lm")
-
-data %>% ggplot(aes(x=measles_incidence_p100k,y=cancer_deaths_p100k,color=year)) + geom_point() +
-  scale_x_log10() + scale_y_log10() + 
-  geom_smooth(method = "lm")
-
-
-summary(lm(pancreatic_deaths_p100k ~ measles_incidence_p100k, data=data))$r.squared
-
-summary(lm(cancer_deaths_p100k ~ log(measles_incidence_p100k), data=data %>% filter(year != 2004)))$r.squared
+lag2_p <- lag2_pred %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="gray60", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Measles cases 2 years prior", y = NULL) +
+  coord_cartesian(ylim = c(0.15, 1.2), xlim = c(0.4, 9.6)) +
+  theme
 
 
+lag3_p <- lag3_pred %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="gray60", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Measles cases 3 years prior", y = "Cancer deaths per 1,000") +
+  coord_cartesian(ylim = c(0.15, 1.2), xlim = c(0.4, 9.6)) +
+  scale_y_continuous(breaks = c(0.2, 0.4, 0.6, 0.8)) +
+  theme + theme(axis.text.y = element_text(size = 12, color = "black"),
+                axis.title.y = element_text(size = 12, color = "black"),
+                axis.ticks.y = element_line(size = 0.3, color = "black"))
+
+
+lag4_p <- lag4_pred %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="gray60", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Measles cases 4 years prior", y = NULL) +
+  coord_cartesian(ylim = c(0.15, 1.2), xlim = c(0.4, 9.6)) +
+  theme
+
+lag5_p <- lag5_pred %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="gray60", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Measles cases 5 years prior", y = NULL) +
+  coord_cartesian(ylim = c(0.15, 1.2), xlim = c(0.4, 9.6)) +
+  theme
+
+
+fig <- ggarrange(lag0_p, lag1_p, lag2_p, lag3_p, lag4_p, lag5_p, 
+                 nrow = 2, ncol = 3,
+                 widths = c(1.27, 1, 1, 
+                            1.27, 1, 1))
+
+
+ggsave(filename = "~/Brazil-measles/figures/cancer_v_lagged_cases.png", 
+       plot = fig, height = 6, width = 7.25, units = "in", bg='white')
 
 
 
