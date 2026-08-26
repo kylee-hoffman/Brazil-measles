@@ -3,6 +3,7 @@ library(janitor)
 library(stringr)
 library(readxl)
 library(openxlsx)
+library("sf")
 
 source("~/Brazil-measles/code/utils.R")
 
@@ -113,44 +114,6 @@ cases <- read_cases("~/Brazil-measles/data/measles_cases/total/cases_01-06_sinan
   merge(pop %>% filter(year > 2000), by = c("muni_code_6", "year")) %>% 
   mutate(mv_incid_total = mv_cases_total / pop_total * 1000) %>% 
   dplyr::select(muni_code_6, year, mv_cases_total, mv_incid_total)
-
-
-
-################################################################################
-## cured measles cases -> amnesia prevalence
-##
-## http://tabnet.datasus.gov.br/cgi/tabcgi.exe?sinannet/cnv/exantbr.def
-## http://tabnet.datasus.gov.br/cgi/tabcgi.exe?sinanwin/cnv/exantbr.def
-##
-################################################################################
-cases_cured <- read_cases("~/Brazil-measles/data/measles_cases/cured/total_01-06_sinanwin_cnv.csv", 
-                         5, "total") %>% 
-  merge(read_cases("~/Brazil-measles/data/measles_cases/cured/total_07-25_sinannet_cnv.csv", 
-                   5, c("x2001", "x2006", "em_branco_ign", "total")),
-        by = "municipio_de_residencia") %>% 
-  mutate(x2004 = 0) %>% # no cases in 2004 so no original column
-  pivot_longer(cols = -"municipio_de_residencia", values_to = "mv_cases_cured") %>% 
-  mutate(year = as.numeric(substring(name, 2)),
-         muni_code_6 = as.numeric(str_split_fixed(municipio_de_residencia, ' ', 2)[, 1])) %>% 
-  merge(pop %>% filter(year > 2000), by = c("muni_code_6", "year")) %>% 
-  mutate(mv_incid_cured = mv_cases_cured / pop_total * 1000) %>% 
-  dplyr::select(muni_code_6, year, mv_cases_cured, mv_incid_cured)
-
-
-amnesia <- cases_cured %>% 
-  group_by(muni_code_6) %>% 
-  mutate(amnesia_d1_ct = mv_cases_cured + dplyr::lag(mv_cases_cured, 1, order_by = year),
-         amnesia_d2_ct = amnesia_d1_ct + dplyr::lag(mv_cases_cured, 2, order_by = year),
-         amnesia_d3_ct = amnesia_d2_ct + dplyr::lag(mv_cases_cured, 3, order_by = year)) %>% 
-  ungroup() %>% 
-  merge(pop %>% filter(year > 2000), by = c("muni_code_6", "year"), all = T) %>% 
-  mutate(amnesia_prev_d1 = amnesia_d1_ct / pop_total * 1000,
-         amnesia_prev_d2 = amnesia_d2_ct / pop_total * 1000,
-         amnesia_prev_d3 = amnesia_d3_ct / pop_total * 1000) %>%
-  dplyr::select(muni_code_6, year, amnesia_prev_d1, amnesia_prev_d2, amnesia_prev_d3)
-
-#setdiff(pop$muni_code_6, cases$muni_code_6) # none
-#setdiff(pop$muni_code_6, amnesia$muni_code_6) # none
 
 
 
@@ -386,10 +349,8 @@ rm(urb00_10, urb01_09, urb00, urb10, urb10_19, urb22, urb20_24)
 ##
 ################################################################################
 df <- merge(pop, cases, by = c("muni_code_6", "year")) %>% 
-  merge(cases_cured, by = c("muni_code_6", "year")) %>% 
   merge(coverage, by = c("muni_code_6", "year")) %>% 
   merge(nmid, by = c("muni_code_6", "year")) %>% 
-  merge(amnesia, by = c("muni_code_6", "year")) %>% 
   merge(cdr, by = c("muni_code_6", "year")) %>% 
   merge(cbr, by = c("muni_code_6", "year")) %>% 
   merge(lit, by = c("muni_code_6", "year")) %>% 
@@ -434,7 +395,6 @@ df <- df %>%
   dplyr::select(region, state, muni_code_6, year, nm_deaths, nm_mx, 
                 mv_cases_total, mv_incid_total, mv_incid_total_lag1, mv_incid_total_lag2, 
                 mv_incid_total_lag3, mv_incid_total_lag4, mv_incid_total_lag5,
-                amnesia_prev_d1, amnesia_prev_d2, amnesia_prev_d3, mv_cases_cured, mv_incid_cured,
                 mcv_d1_cov, mcv_d1_cov_tc, mcv_d1_cov_tc_lag1, mcv_d1_cov_tc_lag2, mcv_d1_cov_tc_lag3, 
                 mcv_d1_cov_tc_lag4, mcv_d1_cov_tc_lag5, cbr, cdr, gdp_pc, 
                 clinics_pc, pop_den, prop_1to9, pop_total, pct_urban, poverty_rate, literacy_rate)
