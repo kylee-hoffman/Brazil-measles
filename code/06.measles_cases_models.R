@@ -9,8 +9,11 @@ library(MASS)
 library(glmmTMB)
 library(broom.mixed)
 library(pscl)
+library(clubSandwich)
+library(parameters)
+library(performance)
 
-source("~/brazil_measles/code/utils.R")
+source("~/Brazil-measles/code/utils.R")
 
 load("~/Brazil-measles/data/analysis_data.RData")
 
@@ -29,38 +32,32 @@ cor.test(df$mcv_d1_cov_tc_lag3, df$mv_cases_total) # -0.0058
 cor.test(df$mcv_d1_cov_tc_lag4, df$mv_cases_total) # -0.0015
 cor.test(df$mcv_d1_cov_tc_lag5, df$mv_cases_total) # -0.0007
 
-summary(m0 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc + region + year + offset(log(pop_total)),
-                      family = nbinom2, data = df))
+m0 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc + region + year + offset(log(pop_total)),
+              family = nbinom2, data = df)
 
-summary(m1 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag1 + region + year + offset(log(pop_total)),
-                      family = nbinom2, data = df))
+m1 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag1 + region + year + offset(log(pop_total)),
+              family = nbinom2, data = df)
 
-summary(m2 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag2 + region + year + offset(log(pop_total)),
-                      family = nbinom2, data = df))
+m2 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag2 + region + year + offset(log(pop_total)),
+              family = nbinom2, data = df)
 
-summary(m3 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag3 + region + year + offset(log(pop_total)),
-                      family = nbinom2, data = df))
+m3 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag3 + region + year + offset(log(pop_total)),
+              family = nbinom2, data = df)
 
-summary(m4 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag4 + region + year + offset(log(pop_total)),
-                      family = nbinom2, data = df))
+m4 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag4 + region + year + offset(log(pop_total)),
+              family = nbinom2, data = df)
 
-summary(m5 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag5 + region + year + offset(log(pop_total)),
-                      family = nbinom2, data = df))
+m5 <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag5 + region + year + offset(log(pop_total)),
+              family = nbinom2, data = df)
 
-# compare coefficients for each lag
-summ0 <- summary(m0)
-summ1 <- summary(m1)
-summ2 <- summary(m2)
-summ3 <- summary(m3)
-summ4 <- summary(m4)
-summ5 <- summary(m5)
 
-summ0$coefficients$cond["mcv_d1_cov_tc", ]
-summ1$coefficients$cond["mcv_d1_cov_tc_lag1", ]
-summ2$coefficients$cond["mcv_d1_cov_tc_lag2", ]
-summ3$coefficients$cond["mcv_d1_cov_tc_lag3", ]
-summ4$coefficients$cond["mcv_d1_cov_tc_lag4", ]
-summ5$coefficients$cond["mcv_d1_cov_tc_lag5", ]
+model_parameters(m0, robust = TRUE, vcov_type = "HC2", exponentiate = T)
+model_parameters(m1, robust = TRUE, vcov_type = "HC2", exponentiate = T)
+model_parameters(m2, robust = TRUE, vcov_type = "HC2", exponentiate = T)
+model_parameters(m3, robust = TRUE, vcov_type = "HC2", exponentiate = T)
+model_parameters(m4, robust = TRUE, vcov_type = "HC2", exponentiate = T)
+model_parameters(m5, robust = TRUE, vcov_type = "HC2", exponentiate = T)
+
 
 AIC(m0, m1, m2, m3, m4, m5) %>% arrange(AIC)
 
@@ -229,68 +226,31 @@ rm(list=ls())
 
 load("~/Brazil-measles/data/analysis_data.RData")
 
-summary(m <- glmmTMB(mv_cases_total ~ mcv_d1_cov_tc_lag2 + log(gdp_pc) + literacy_rate + poverty_rate + 
-                        pct_urban + clinics_pc + region + year + offset(log(pop_total)),
-                      family = nbinom2, data = df))
+m <- zeroinfl(mv_cases_total ~ mcv_d1_cov_tc_lag2 + log(gdp_pc) + literacy_rate + 
+                poverty_rate + pct_urban + clinics_pc + cbr + region + year + 
+                offset(log(pop_total)) | 1 + offset(log(pop_total)),
+              data = df, dist = "negbin")
 
+tab <- model_parameters(m, robust = TRUE, vcov_type = "HC2", exponentiate = T) %>% 
+  mutate(sig = cut(p, 
+                   breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
+                   labels = c("***", "**", "*", ".", "")),
+         IRR = paste0(round(Coefficient, 3), sig),
+         CI = paste0("(", round(CI_low, 3), ", ", round(CI_high, 3), ")"),
+         SE = round(SE, 3)) %>% 
+  dplyr::select(Term = Parameter, IRR, CI, SE)
+  
+write.table(tab, file = "", quote = F, row.names = F, sep = "\t & ")
 
-tab <- tidy(m) %>%
-  mutate(sig = cut(p.value, 
-             breaks = c(-Inf, 0.001, 0.01, 0.05, 0.1, Inf), 
-             labels = c("***", "**", "*", ".", "")),
-         estimate = paste0(round(estimate, 3), sig),
-         SE = paste0("(", round(std.error, 3), ")")) %>% 
-  dplyr::select(term, estimate, SE)
+# maybe try efron
+pR2(m)["McFadden"]
 
-write.table(tab, file = "", quote = F, row.names = F, sep = "\t")
-
-# quantile(df$mcv_d1_cov, probs = c(0.1, 0.9), na.rm=T)
-# 75.000 153.811 
-mcv_pred <- predict_response(m2, 
-                             terms = list(mcv_d1_cov_tc_lag2 = seq(0, 100, by = 5)), 
-                             margin = "mean_mode", 
-                             ci_level = 0.95,
-                             type = "count", 
-                             condition = c(pop_total = 1000)) %>% data.frame()
-
-# quantile(df$gdp_pc, probs = c(0.1, 0.9), na.rm=T)
-# 3377.45 37903.07 
-gdp_pred <- predict_response(m2, 
-                             terms = list(gdp_pc = seq(3377.45, 37903.07, length.out = 10)), 
-                             margin = "mean_mode", 
-                             ci_level = 0.95,
-                             type = "count", 
-                             condition = c(pop_total = 1000)) %>% data.frame()
-
-# quantile(df$clinics_pc, probs = c(0.1, 0.9), na.rm=T)
-# 0.0927 0.5520
-clinic_pred <- predict_response(m2, 
-                                terms = list(clinics_pc = seq(0.0927, 0.5520, length.out = 20)), 
-                                margin = "mean_mode", 
-                                ci_level = 0.95,
-                                type = "count", 
-                                condition = c(pop_total = 1000)) %>% data.frame() 
-
-# quantile(df$cbr, probs = c(0.1, 0.9), na.rm=T)
-# 9.1760 18.6304
-cbr_pred <- predict_response(m2, 
-                             terms = list(cbr = seq(9.176, 18.630, length.out = 20)), 
-                             margin = "mean_mode", 
-                             ci_level = 0.95,
-                             type = "count", 
-                             condition = c(pop_total = 1000)) %>% data.frame() 
-
-# quantile(df$pop_den, probs = c(0.1, 0.9), na.rm=T)
-# 4.3776 130.6577
-pop_den_pred <- predict_response(m2, 
-                                 terms = list(pop_den = seq(4.378, 130.658, length.out = 20)), 
-                                 margin = "mean_mode", 
-                                 ci_level = 0.95,
-                                 type = "count", 
-                                 condition = c(pop_total = 1000)) %>% data.frame() 
-
-
-
+  
+################################################################################
+##
+## prediction plots (not robust?)
+##
+################################################################################
 theme <- theme_bw(base_family = "Myriad Pro", base_size = 12) +
   theme(text = element_text(color = "black"),
         axis.text.x = element_text(size = 12, color = "black"),
@@ -301,52 +261,123 @@ theme <- theme_bw(base_family = "Myriad Pro", base_size = 12) +
         panel.border = element_rect(color = "black", linewidth = 0.3),
         axis.ticks.x = element_line(size = 0.3, color = "black"),
         axis.ticks.y = element_blank(),
-        plot.margin=margin(t = 1, r = 3, b = 1, l = 1, unit = "mm"),
+        plot.margin=margin(t = 3, r = 3, b = 3, l = 0, unit = "mm"),
         legend.background = element_blank())
 
-mcv_p <- mcv_pred %>% 
+mcv_p <- predict_response(m, 
+                          terms = list(mcv_d1_cov_tc_lag2 = seq(0, 100, by = 5)), 
+                          margin = "mean_mode", 
+                          ci_level = 0.95,
+                          type = "count", 
+                         # vcov = "HC",
+                          condition = c(pop_total = 1000)) %>% 
+  data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#faeaac", alpha = 0.7) +
-  geom_line(linewidth = 0.5) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#a7c5e8", alpha = 0.7) +
+  geom_line(linewidth = 0.3) +
   labs(x = "MCV1 coverage 2 years prior", y = NULL) + 
-  coord_cartesian(ylim = c(0.0003, 0.0034), xlim = c(4, 96)) +
+  coord_cartesian(ylim = c(0.00006, 0.002), xlim = c(4, 96)) +
   scale_y_continuous(breaks = c(0, 0.001, 0.002, 0.003)) +
   theme +
   theme(axis.text.y = element_text(size = 12, color = "black"),
         axis.ticks.y = element_line(size = 0.3, color = "black"))
 
-gdp_p <- gdp_pred %>% 
+
+#quantile(df$poverty_rate, probs = c(0.1, 0.9), na.rm=T)
+# 17.13 78.78 
+pov_p <- predict_response(m, 
+                          terms = list(poverty_rate = seq(17.13, 78.78, length.out = 10)), 
+                          margin = "mean_mode", 
+                          ci_level = 0.95,
+                          type = "fixed",
+                          condition = c(pop_total = 1000)) %>% 
+  data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#e6d7f7", alpha = 0.5) +
-  geom_line(linewidth = 0.5) +
-  labs(x = "GDP per capita", y = NULL) + 
-  coord_cartesian(ylim = c(0.0003, 0.0034), xlim = c(4800, 36500)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              linewidth = 0, fill ="#f2d78d", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Poverty rate", y = NULL) + 
+  coord_cartesian(ylim = c(0.00006, 0.002), xlim = c(19.6, 76.3)) +
+  scale_x_continuous(breaks = c(25, 50, 75)) +
   theme
 
-cbr_p <- cbr_pred %>%
+
+#quantile(df$literacy_rate, probs = c(0.1, 0.9), na.rm=T)
+# 70.67 95.30 
+lit_p <- predict_response(m, 
+                          terms = list(literacy_rate = seq(70.67, 95.30, 
+                                                           length.out = 10)), 
+                          margin = "mean_mode", 
+                          ci_level = 0.95,
+                          condition = c(pop_total = 1000)) %>% 
+  data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#f5baa6", alpha = 0.5) +
-  geom_line(linewidth = 0.5) +
-  labs(x = "Crude birth rate", y = NULL) + 
-  coord_cartesian(ylim = c(0.0003, 0.0034), xlim = c(9.55, 18.25)) +
-  theme +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              linewidth = 0, fill ="#8783D1", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Literacy rate", y = NULL) + 
+  coord_cartesian(ylim = c(0.00006, 0.002), xlim = c(71.7, 94.3)) +
+  scale_x_continuous(breaks = c(75, 85, 95)) + theme
+
+# quantile(df$clinics_pc, probs = c(0.1, 0.9), na.rm=T)
+# 0.09167864 0.54545004 
+clinic_p <- predict_response(m, 
+                                terms = list(clinics_pc = seq(0.09167864, 0.54545004, length.out = 20)), 
+                                margin = "mean_mode", 
+                                ci_level = 0.95,
+                                type = "count", 
+                                condition = c(pop_total = 1000)) %>% 
+  data.frame() %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#ACC196", alpha = 0.4) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "UBS clinics per capita", y = NULL) + 
+  coord_cartesian(ylim = c(0.00006, 0.002), xlim = c(0.11, 0.527)) +
+  scale_y_continuous(breaks = c(0, 0.001, 0.002, 0.003)) +
+  theme + 
   theme(axis.text.y = element_text(size = 12, color = "black"),
         axis.ticks.y = element_line(size = 0.3, color = "black"))
 
-clinic_p <- clinic_pred %>% 
+
+# quantile(df$pct_urban, probs = c(0.1, 0.9), na.rm=T)
+# 33.14 92.87
+urban_p <- predict_response(m, 
+                            terms = list(pct_urban = seq(33.14, 92.87, length.out = 20)), 
+                            margin = "mean_mode", 
+                            ci_level = 0.95,
+                            type = "count", 
+                            condition = c(pop_total = 1000)) %>% 
+  data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#a3d6ca", alpha = 0.4) +
-  geom_line(linewidth = 0.5) +
-  labs(x = "UBS clinics per capita", y = NULL) + 
-  coord_cartesian(ylim = c(0.0003, 0.0034), xlim = c(0.11, 0.535)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#E5C1BD", alpha = 0.7) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "% urban", y = NULL) + 
+  coord_cartesian(ylim = c(0.00006, 0.002), xlim = c(35.5, 90.5)) +
+  theme
+
+# quantile(df$cbr, probs = c(0.1, 0.9), na.rm=T)
+#  9.170367 17.785892 
+cbr_p <- predict_response(m, 
+                          terms = list(cbr = seq(9.170367, 17.785892, length.out = 10)), 
+                          margin = "mean_mode", 
+                          ci_level = 0.95,
+                          type = "count", 
+                          condition = c(pop_total = 1000)) %>% 
+  data.frame() %>% 
+  ggplot(aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#89bbc7", alpha = 0.5) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Crude birth rate per 1,000", y = NULL) + 
+  coord_cartesian(ylim = c(0.00006, 0.002), xlim = c(9.54, 17.43)) +
   theme
 
 
-fig <- ggarrange(mcv_p, gdp_p, NULL, NULL, cbr_p, clinic_p, ncol = 2, nrow = 3, heights = c(1, 0.1, 1)) + 
+fig <- ggarrange(mcv_p, pov_p, lit_p, clinic_p, urban_p, cbr_p, nrow = 2, ncol = 3,
+                 widths = c(1, 0.8, 0.8)) + 
   theme(plot.margin=margin(t = 1, r = 1, b = 1, l = 8, unit = "mm")) +
   annotate("text", x = -0.02, y = 0.5, angle = 90,
            label = "Adjusted measles incidence per 1,000", 
            family = "Myriad Pro")
 
-ggsave(filename = "~/brazil_measles/figures/cases_preds.png", 
+ggsave(filename = "~/Brazil-measles/figures/cases_preds.png", 
        plot = fig, height = 4, width = 7.25, units = "in", bg='white')

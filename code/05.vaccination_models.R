@@ -4,6 +4,9 @@ library(ggplot2)
 library(ggpubr)
 library(msm)
 library(jtools)
+library(performance)
+library(estimatr)
+library(modelsummary)
 
 source("~/Brazil-measles/code/utils.R")
 
@@ -62,30 +65,28 @@ predict_response(m2,
 # rm(a, b, c)
 # cbr is better, but keeping clinics for now
 
-summary(m <- lm(mcv_d1_cov_tc ~ log(gdp_pc) + literacy_rate + poverty_rate + 
-                   pct_urban + clinics_pc + region + year, data = df))
 
-
-# coefficient table
-se <- summ(m, robust = "HC1", digits = 3)$coeftable %>% 
-  as.data.frame() %>% rownames_to_column() %>% select(rowname, `S.E.`)
-
-coefs <- summ(m, robust = "HC1", confint = T, digits = 3)$coeftable %>% 
-  as.data.frame() %>% rownames_to_column() %>% 
-  merge(se, by = "rowname") %>% 
-  mutate(sig = cut(p, 
-                   breaks = c(-Inf, 0.001, 0.01, 0.05, Inf), 
-                   labels = c("***", "**", "*", ""), 
-                   right = FALSE),
-         CI = paste0("(", round(`2.5%`, 3), ", ", round(`97.5%`, 3), ")"),
-         Estimate = paste0(round(`Est.`, 3), sig),
-         SE = as.character(round(`S.E.`, 3))) %>% 
-  select(Term = rowname, Estimate, CI, SE)
+tidy(m_robust <- lm_robust(mcv_d1_cov_tc ~ log(gdp_pc) + literacy_rate + poverty_rate + 
+                  pct_urban + clinics_pc + region + year, data = df, se_type = "HC2"))
 # Observations: 99126
 # R² = 0.113
 # Adj. R² = 0.112 
+coefs <- tidy(m_robust) %>%
+  mutate(sig = cut(p.value, 
+                   breaks = c(-Inf, 0.001, 0.01, 0.05, Inf), 
+                   labels = c("***", "**", "*", ""), 
+                   right = FALSE),
+         CI = paste0("(", round(conf.low, 3), ", ", round(conf.high, 3), ")"),
+         Estimate = paste0(round(estimate, 3), sig),
+         SE = as.character(round(std.error, 3))) %>% 
+  dplyr::select(term, Estimate, CI, SE)
+
+r2(m_robust)
+
 write.table(coefs, file = "", row.names = F, quote = F, sep = " & \t")
 
+# Plot coefficients and confidence intervals
+modelplot(m_robust, coef_omit = "reg|year|Int")
 
 ############################################################################
 ##
@@ -101,15 +102,15 @@ theme <- theme_bw(base_family = "Myriad Pro", base_size = 12) +
         panel.grid.minor = element_blank(),
         panel.background = element_blank(),
         panel.border = element_rect(color = "black", linewidth = 0.3),
-        axis.ticks.x = element_line(size = 0.3, color = "black"),
+        axis.ticks.x = element_line(linewidth = 0.3, color = "black"),
         axis.ticks.y = element_blank(),
-        plot.margin=margin(t = 0.5, r = 1.1, b = 1.5, l = 1.1, unit = "mm"),
+        plot.margin=margin(t = 0.5, r = 2, b = 1.5, l = 0, unit = "mm"),
         legend.background = element_blank())
 
 
 #quantile(df$poverty_rate, probs = c(0.1, 0.9), na.rm=T)
 # 17.13 78.78 
-pov_p <- predict_response(m, 
+pov_p <- predict_response(m_robust, 
                           terms = list(poverty_rate = seq(17.13, 78.78, 
                                                           length.out = 10)), 
                           margin = "mean_mode", 
@@ -117,7 +118,7 @@ pov_p <- predict_response(m,
                           type = "fixed") %>% data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              linewidth = 0, fill ="#e6d7f7", alpha = 0.5) +
+              linewidth = 0, fill ="#f2d78d", alpha = 0.5) +
   geom_line(linewidth = 0.3) +
   labs(x = "Poverty rate", y = NULL) + 
   coord_cartesian(ylim = c(94, 100), xlim = c(19.7, 76.2)) +
@@ -131,7 +132,7 @@ pov_p <- predict_response(m,
 
 #quantile(df$literacy_rate, probs = c(0.1, 0.9), na.rm=T)
 # 70.67 95.30 
-lit_p <- predict_response(m, 
+lit_p <- predict_response(m_robust, 
                  terms = list(literacy_rate = seq(70.67, 95.30, 
                                                   length.out = 10)), 
                  margin = "mean_mode", 
@@ -139,7 +140,7 @@ lit_p <- predict_response(m,
                  type = "fixed") %>% data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              linewidth = 0, fill ="#abffc8", alpha = 0.5) +
+              linewidth = 0, fill ="#8783D1", alpha = 0.5) +
   geom_line(linewidth = 0.3) +
   labs(x = "Literacy rate", y = NULL) + 
   coord_cartesian(ylim = c(94, 100), xlim = c(71.7, 94.27)) +
@@ -147,7 +148,7 @@ lit_p <- predict_response(m,
 
 #quantile(df$pct_urban, probs = c(0.1, 0.9), na.rm=T)
 # 33.14 92.87
-urban_p <- predict_response(m, 
+urban_p <- predict_response(m_robust, 
                             terms = list(pct_urban = seq(33.14, 92.87, 
                                                          length.out = 20)), 
                             margin = "mean_mode", 
@@ -155,7 +156,7 @@ urban_p <- predict_response(m,
                             type = "fixed") %>% data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              linewidth = 0, fill ="#f2d78d", alpha = 0.5) +
+              linewidth = 0, fill ="#E5C1BD", alpha = 0.5) +
   geom_line(linewidth = 0.3) +
   labs(x = "% urban", y = NULL) + 
   coord_cartesian(ylim = c(94, 100), xlim = c(35.6, 90.4)) +
@@ -164,7 +165,7 @@ urban_p <- predict_response(m,
 
 # quantile(df$clinics_pc, probs = c(0.1, 0.9), na.rm=T)
 # 0.09167864 0.54545004 
-clinic_p <-  predict_response(m, 
+clinic_p <-  predict_response(m_robust, 
                               terms = list(clinics_pc = seq(0.09167864, 0.54545004,
                                                             length.out = 20)), 
                               margin = "mean_mode", 
@@ -172,7 +173,7 @@ clinic_p <-  predict_response(m,
                               type = "fixed") %>% data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              linewidth = 0, fill ="#a3d6ca", alpha = 0.4) +
+              linewidth = 0, fill ="#ACC196", alpha = 0.4) +
   geom_line(linewidth = 0.3) +
   labs(x = "UBS clinics per 1,000", y = NULL) + 
   coord_cartesian(ylim =  c(94, 100), xlim = c(0.11, 0.527)) +
@@ -181,7 +182,7 @@ clinic_p <-  predict_response(m,
 
 # quantile(df$gdp_pc, probs = c(0.1, 0.9), na.rm=T)
 # 4688.17 41242.88 
-gdp_p <- predict_response(m, 
+gdp_p <- predict_response(m_robust, 
                           terms = list(gdp_pc = seq(4688.17, 41242.88, 
                                                     length.out = 10)), 
                           margin = "mean_mode", 
@@ -189,7 +190,7 @@ gdp_p <- predict_response(m,
                           type = "fixed") %>% data.frame() %>% 
   ggplot(aes(x = x, y = predicted)) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              linewidth = 0, fill ="#faacae", alpha = 0.5) +
+              linewidth = 0, fill ="#114B5F", alpha = 0.5) +
   geom_line(linewidth = 0.3) +
   labs(x = "GDP PC (1,000 BRL)", y = NULL) + 
   coord_cartesian(ylim = c(94, 100), xlim = c(6200, 39700)) +
@@ -199,8 +200,8 @@ gdp_p <- predict_response(m,
 
 fig <- ggarrange(pov_p, lit_p, urban_p, clinic_p, gdp_p, 
           nrow = 1, widths = c(1.34, 1, 1, 1, 1)) + 
-  theme(plot.margin=margin(t = 0, r = 0, b = 0, l = 4, unit = "mm")) +
-  annotate("text", x = -0.01, y = 0.6, size = 4.5, angle = 90,
+  theme(plot.margin=margin(t = 0, r = -1, b = -0.5, l = 6, unit = "mm")) +
+  annotate("text", x = -0.019, y = 0.6, size = 4.5, angle = 90,
            label = "MCV dose 1 coverage", 
            family = "Myriad Pro")
 

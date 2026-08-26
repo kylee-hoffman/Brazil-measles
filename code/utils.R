@@ -1,3 +1,4 @@
+# reading data
 read_datasus <- function(file, line_skip, drop_cols, values_to) {
   read.delim(file, sep = ";", fileEncoding = "Latin1", dec = ",", skip = line_skip, nrows = 5597) %>% 
     clean_names() %>% 
@@ -61,3 +62,5 @@ rr_tab <- function(mod) {
     mutate(CI = paste0("(", `lower CI`, ", ", `upper CI`, ")")) %>% 
     dplyr::select(Term = rowname, IRR, CI)
 }
+
+

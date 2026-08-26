@@ -41,3 +41,8 @@ anyNA(df %>% dplyr::select(-susceptible_pop_u10))
 
 save(df, file = '~/Brazil-measles/data/analysis_data.RData')
 
+# keep all years for descriptive plots
+plot_df <- df %>% 
+  filter(muni_code_6 %in% census00_munis$muni_code_6)
+
+save(plot_df, file = '~/Brazil-measles/data/plotting_data.RData')

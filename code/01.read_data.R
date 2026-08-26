@@ -2,7 +2,6 @@ library(tidyverse)
 library(janitor)
 library(stringr)
 library(readxl)
-library("sf")
 library(openxlsx)
 
 source("~/Brazil-measles/code/utils.R")
@@ -420,75 +419,27 @@ df <- df %>%
                                    'Santa Catarina', 'Paraíba', 'Espírito Santo',  'Sergipe', 'Pernambuco',  
                                    'Alagoas', 'São Paulo', 'Rio de Janeiro', 'Distrito Federal'))) %>% 
   group_by(muni_code_6) %>% 
-  mutate(mcv_d1_cov_lag1 = lag(mcv_d1_cov, 1, order_by = year),
-         mcv_d1_cov_lag2 = lag(mcv_d1_cov, 2, order_by = year),
-         mcv_d1_cov_lag3 = lag(mcv_d1_cov, 3, order_by = year),
-         mcv_d1_cov_lag4 = lag(mcv_d1_cov, 4, order_by = year),
-         mcv_d1_cov_lag5 = lag(mcv_d1_cov, 5, order_by = year),
+  mutate(mv_incid_total_lag1 = lag(mv_incid_total, 1, order_by = year),
+         mv_incid_total_lag2 = lag(mv_incid_total, 2, order_by = year),
+         mv_incid_total_lag3 = lag(mv_incid_total, 3, order_by = year),
+         mv_incid_total_lag4 = lag(mv_incid_total, 4, order_by = year),
+         mv_incid_total_lag5 = lag(mv_incid_total, 5, order_by = year),
+         
          mcv_d1_cov_tc_lag1 = lag(mcv_d1_cov_tc, 1, order_by = year),
          mcv_d1_cov_tc_lag2 = lag(mcv_d1_cov_tc, 2, order_by = year),
          mcv_d1_cov_tc_lag3 = lag(mcv_d1_cov_tc, 3, order_by = year),
          mcv_d1_cov_tc_lag4 = lag(mcv_d1_cov_tc, 4, order_by = year),
          mcv_d1_cov_tc_lag5 = lag(mcv_d1_cov_tc, 5, order_by = year)) %>% 
   ungroup() %>% 
-  dplyr::select(region, state, muni_code_6, year, nm_deaths, nm_mx, mv_incid_total, mv_incid_cured,
-                amnesia_prev_d1, amnesia_prev_d2, amnesia_prev_d3, mv_cases_total, mv_cases_cured,
-                mcv_d1_cov, mcv_d1_cov_lag1, mcv_d1_cov_lag2, mcv_d1_cov_lag3, mcv_d1_cov_lag4, mcv_d1_cov_lag5, 
-                mcv_d1_cov_tc, mcv_d1_cov_tc_lag1, mcv_d1_cov_tc_lag2, mcv_d1_cov_tc_lag3, mcv_d1_cov_tc_lag4, 
-                mcv_d1_cov_tc_lag5, cbr, cdr, gdp_pc, 
+  dplyr::select(region, state, muni_code_6, year, nm_deaths, nm_mx, 
+                mv_cases_total, mv_incid_total, mv_incid_total_lag1, mv_incid_total_lag2, 
+                mv_incid_total_lag3, mv_incid_total_lag4, mv_incid_total_lag5,
+                amnesia_prev_d1, amnesia_prev_d2, amnesia_prev_d3, mv_cases_cured, mv_incid_cured,
+                mcv_d1_cov, mcv_d1_cov_tc, mcv_d1_cov_tc_lag1, mcv_d1_cov_tc_lag2, mcv_d1_cov_tc_lag3, 
+                mcv_d1_cov_tc_lag4, mcv_d1_cov_tc_lag5, cbr, cdr, gdp_pc, 
                 clinics_pc, pop_den, prop_1to9, pop_total, pct_urban, poverty_rate, literacy_rate)
 
 save(df, file = '~/Brazil-measles/data/muni-year_panel_01-24.RData')
 
 rm(list=ls())
-
-
-
-
-
-################################################################################
-##
-## geometry for maps
-##
-################################################################################
-load("~/Brazil-measles/data/muni-year_panel_01-24.RData")
-
-geom <- read_sf('~/Brazil-measles/data/geography/municipalities/BR_Municipios_2025.shp') %>% 
-  mutate(muni_code_6 = substring(CD_MUN, 1, 6)) %>% 
-  filter(!str_detect(NM_MUN, "Área Operacional")) %>% # water area
-  dplyr::select(muni_code_6, geometry)
-
-
-
-measles_cumulative <- df %>% 
-  filter(year %in% 2018:2021) %>% 
-  group_by(muni_code_6) %>% 
-  summarise(cases = sum(mv_cases_total)) %>% 
-  merge(df %>% filter(year == 2021) %>% dplyr::select(muni_code_6, pop_total), by = "muni_code_6") %>% 
-  mutate(incid = cases / pop_total * 1000) %>% 
-  dplyr::select(muni_code_6, incid)
-
-
-nm_mortality <- df %>% 
-  dplyr::select(muni_code_6, year, nm_mx) %>% 
-  filter(year %in% 2018:2024) %>% 
-  pivot_wider(names_from = year,
-              values_from = nm_mx,
-              names_prefix = "mort") %>% 
-  merge(measles_cumulative, by = "muni_code_6") %>% 
-  right_join(geom, by = "muni_code_6")
-
-
-coverage <- df %>% 
-  dplyr::select(muni_code_6, year, mcv_d1_cov) %>% 
-  pivot_wider(names_from = year,
-              values_from = mcv_d1_cov,
-              names_prefix = "X") %>% 
-  right_join(geom, by = "muni_code_6")
-
-
-st_write(coverage, "~/Brazil-measles/generated_data/geometry/coverage/muni_coverage.shp")
-
-
-st_write(nm_mortality, "~/Brazil-measles/generated_data/geometry/brazil_muni.shp")
 
