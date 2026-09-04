@@ -8,6 +8,9 @@ library(msm)
 library(rsq)
 library(MASS)
 library(splines)
+library(janitor)
+library(feasts)
+
 
 load("~/Brazil-measles/data/analysis_data.RData")
 
@@ -18,7 +21,6 @@ load("~/Brazil-measles/data/analysis_data.RData")
 ##
 ##
 ################################################################################
-
 cor.test(df$mv_incid_total, df$nm_mx)      # -0.0007988
 cor.test(df$mv_incid_total_lag1, df$nm_mx) # -0.0033647
 cor.test(df$mv_incid_total_lag2, df$nm_mx) #  0.0008388
@@ -26,87 +28,12 @@ cor.test(df$mv_incid_total_lag3, df$nm_mx) #  0.0127636
 cor.test(df$mv_incid_total_lag4, df$nm_mx) #  0.0113815
 cor.test(df$mv_incid_total_lag5, df$nm_mx) # -0.0008554
 
-m0 <- glm.nb(nm_deaths ~ mv_incid_total + region + year + offset(log(pop_total)),
-             data = df)
-
-m1 <- glm.nb(nm_deaths ~ mv_incid_total_lag1 + region + year + offset(log(pop_total)),
-             data = df)
-
-m2 <- glm.nb(nm_deaths ~ mv_incid_total_lag2 + region + year + offset(log(pop_total)),
-             data = df)
-
-m3 <- glm.nb(nm_deaths ~ mv_incid_total_lag3 + region + year + offset(log(pop_total)),
-             data = df)
-
-m4 <- glm.nb(nm_deaths ~ mv_incid_total_lag4 + region + year + offset(log(pop_total)),
-             data = df)
-
-m5 <- glm.nb(nm_deaths ~ mv_incid_total_lag5 + region + year + offset(log(pop_total)),
-             data = df)
-
-
-model_parameters(m0, robust = TRUE, vcov_type = "HC2", exponentiate = T, ci_method="wald")[2, ]
-model_parameters(m1, robust = TRUE, vcov_type = "HC2", exponentiate = T, ci_method="wald")[2, ]
-model_parameters(m2, robust = TRUE, vcov_type = "HC2", exponentiate = T, ci_method="wald")[2, ]
-model_parameters(m3, robust = TRUE, vcov_type = "HC2", exponentiate = T, ci_method="wald")[2, ]
-model_parameters(m4, robust = TRUE, vcov_type = "HC2", exponentiate = T, ci_method="wald")[2, ]
-model_parameters(m5, robust = TRUE, vcov_type = "HC2", exponentiate = T, ci_method="wald")[2, ]
-
-
-AIC(m0, m1, m2, m3, m4, m5) %>% arrange(AIC)
-
-
-lag0_pred <- predict_response(m0, 
-                              terms = list(mv_incid_total = seq(0, 10, by = 1)), 
-                              margin = "mean_mode", 
-                              ci_level = 0.95,
-                              type = "count", 
-                              condition = c(pop_total = 1000)) %>% data.frame() 
-
-lag1_pred <- predict_response(m1, 
-                              terms = list(mv_incid_total_lag1 = seq(0, 10, by = 1)), 
-                              margin = "mean_mode", 
-                              ci_level = 0.95,
-                              type = "count", 
-                              condition = c(pop_total = 1000)) %>% data.frame() 
-
-lag2_pred <- predict_response(m2, 
-                              terms = list(mv_incid_total_lag2 = seq(0, 10, by = 1)), 
-                              margin = "mean_mode", 
-                              ci_level = 0.95,
-                              type = "count", 
-                              condition = c(pop_total = 1000)) %>% data.frame() 
-
-lag3_pred <- predict_response(m3, 
-                              terms = list(mv_incid_total_lag3 = seq(0, 10, by = 1)), 
-                              margin = "mean_mode", 
-                              ci_level = 0.95,
-                              type = "count", 
-                              condition = c(pop_total = 1000)) %>% data.frame() 
-
-lag4_pred <- predict_response(m4, 
-                              terms = list(mv_incid_total_lag4 = seq(0, 10, by = 1)), 
-                              margin = "mean_mode", 
-                              ci_level = 0.95,
-                              type = "count", 
-                              condition = c(pop_total = 1000)) %>% data.frame() 
-
-lag5_pred <- predict_response(m5, 
-                              terms = list(mv_incid_total_lag5 = seq(0, 10, by = 1)), 
-                              margin = "mean_mode", 
-                              ci_level = 0.95,
-                              type = "count", 
-                              condition = c(pop_total = 1000)) %>% data.frame() 
-# Adjusted for:
-# * region = Nordeste
-# *   year =     2006
-
-pR2(m0)["McFadden"]
-pR2(m1)["McFadden"]
-pR2(m2)["McFadden"]
-pR2(m3)["McFadden"]
-pR2(m4)["McFadden"]
-pR2(m5)["McFadden"]
+lag0_r <- format(round(cor(df$mv_incid_total, df$nm_mx, method = "pearson"), 3), nsmall = 3)
+lag1_r <- format(round(cor(df$mv_incid_total_lag1, df$nm_mx, method = "pearson"), 3), nsmall = 3)
+lag2_r <- format(round(cor(df$mv_incid_total_lag2, df$nm_mx, method = "pearson"), 3), nsmall = 3)
+lag3_r <- format(round(cor(df$mv_incid_total_lag3, df$nm_mx, method = "pearson"), 3), nsmall = 3)
+lag4_r <- format(round(cor(df$mv_incid_total_lag4, df$nm_mx, method = "pearson"), 3), nsmall = 3)
+lag5_r <- format(round(cor(df$mv_incid_total_lag5, df$nm_mx, method = "pearson"), 3), nsmall = 3)
 
 theme <- theme_bw(base_family = "Myriad Pro", base_size = 12) +
   theme(text = element_text(color = "black"),
@@ -118,97 +45,281 @@ theme <- theme_bw(base_family = "Myriad Pro", base_size = 12) +
         panel.border = element_rect(color = "black", linewidth = 0.3),
         axis.ticks.x = element_line(size = 0.3, color = "black"),
         axis.ticks.y = element_blank(),
-        plot.margin=margin(t = 4, r = 3, b = 4, l = 3, unit = "mm"),
+        plot.margin=margin(t = 0, r = 4, b = 0, l = 0, unit = "mm"),
         legend.background = element_blank())
 
-
-lag0_p <- lag0_pred %>% 
-  ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#87406f", alpha = 0.5) +
-  geom_line(linewidth = 0.3) +
+p0 <- ggplot(df %>% filter(mv_incid_total > 0 & nm_mx > 0), aes(x = mv_incid_total, y = nm_mx)) +
+  geom_point(shape = 21, color = "#87406f", stroke = 0.3, fill = "#f5bfe3", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
   labs(x = "Measles cases per 1,000", y = "Non-measles ID deaths per 1,000") +
-  coord_cartesian(ylim = c(0.15, 0.82), xlim = c(0.4, 9.6)) +
-  scale_y_continuous(breaks = c(0.2, 0.4, 0.6, 0.8)) +
-  theme + theme(axis.text.y = element_text(size = 12, color = "black"),
-                axis.title.y = element_text(size = 12, color = "black"),
-                axis.ticks.y = element_line(size = 0.3, color = "black")) +
-  annotate("text", x = 0.6, y = 0.75, family = "Myriad Pro", size = 3.6, hjust = 0,
-           label = paste("Pseudo R²:", format(round(pR2(m0)["McFadden"], 3), nsmall = 3), 
-                         "\nΔAIC:", round(AIC(m0) - AIC(m3), 1)))
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10(breaks = c(0.03, 0.1, 0.3, 1, 3)) +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag0_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
 
 
-lag1_p <- lag1_pred %>% 
-  ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#87406f", alpha = 0.5) +
-  geom_line(linewidth = 0.3) +
-  labs(x = "Measles cases 1 year prior", y = NULL) +
-  coord_cartesian(ylim = c(0.15, 0.82), xlim = c(0.4, 9.6)) +
-  theme +
-  annotate("text", x = 0.6, y = 0.75, family = "Myriad Pro", size = 3.6, hjust = 0,
-           label = paste("Pseudo R²:", format(round(pR2(m1)["McFadden"], 3), nsmall = 3), 
-                         "\nΔAIC:", round(AIC(m1) - AIC(m3), 1)))
+p1 <- ggplot(df %>% filter(mv_incid_total_lag1 > 0 & nm_mx > 0), 
+       aes(x = mv_incid_total_lag1, y = nm_mx)) +
+  geom_point(shape = 21, color = "#87406f", stroke = 0.3, fill = "#f5bfe3", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 1 year prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag1_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
 
-lag2_p <- lag2_pred %>% 
-  ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#87406f", alpha = 0.5) +
-  geom_line(linewidth = 0.3) +
-  labs(x = "Measles cases 2 years prior", y = NULL) +
-  coord_cartesian(ylim = c(0.15, 0.82), xlim = c(0.4, 9.6)) +
-  theme +
-  annotate("text", x = 0.6, y = 0.75, family = "Myriad Pro", size = 3.6, hjust = 0,
-           label = paste("Pseudo R²:", format(round(pR2(m2)["McFadden"], 3), nsmall = 3), 
-                         "\nΔAIC:", round(AIC(m2) - AIC(m3), 1)))
+p2 <- ggplot(df %>% filter(mv_incid_total_lag2 > 0 & nm_mx > 0), 
+             aes(x = mv_incid_total_lag2, y = nm_mx)) +
+  geom_point(shape = 21, color = "#87406f", stroke = 0.3, fill = "#f5bfe3", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 2 years prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag2_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
 
+p3 <- ggplot(df %>% filter(mv_incid_total_lag3 > 0 & nm_mx > 0), 
+             aes(x = mv_incid_total_lag3, y = nm_mx)) +
+  geom_point(shape = 21, color = "#87406f", stroke = 0.3, fill = "#f5bfe3", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 3 years prior", y = "Non-measles ID deaths per 1,000") +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag3_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
 
+p4 <- ggplot(df %>% filter(mv_incid_total_lag4 > 0 & nm_mx > 0), 
+             aes(x = mv_incid_total_lag4, y = nm_mx)) +
+  geom_point(shape = 21, color = "#87406f", stroke = 0.3, fill = "#f5bfe3", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 4 years prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag4_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
 
-lag3_p <- lag3_pred %>% 
-  ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#87406f", alpha = 0.5) +
-  geom_line(linewidth = 0.3) +
-  labs(x = "Measles cases 3 years prior", y = "Non-measles ID deaths per 1,000") +
-  coord_cartesian(ylim = c(0.15, 0.82), xlim = c(0.4, 9.6)) +
-  scale_y_continuous(breaks = c(0.2, 0.4, 0.6, 0.8)) +
-  theme + theme(axis.text.y = element_text(size = 12, color = "black"),
-                axis.title.y = element_text(size = 12, color = "black"),
-                axis.ticks.y = element_line(size = 0.3, color = "black")) +
-  annotate("text", x = 0.6, y = 0.75, family = "Myriad Pro", size = 3.6, hjust = 0,
-           label = paste("Pseudo R²:", format(round(pR2(m3)["McFadden"], 3), nsmall = 3), 
-                         "\nΔAIC: 0.0"))
+p5 <- ggplot(df %>% filter(mv_incid_total_lag5 > 0 & nm_mx > 0), 
+             aes(x = mv_incid_total_lag5, y = nm_mx)) +
+  geom_point(shape = 21, color = "#87406f", stroke = 0.3, fill = "#f5bfe3", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 5 years prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag5_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
 
-
-lag4_p <- lag4_pred %>% 
-  ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#87406f", alpha = 0.5) +
-  geom_line(linewidth = 0.3) +
-  labs(x = "Measles cases 4 years prior", y = NULL) +
-  coord_cartesian(ylim = c(0.15, 0.82), xlim = c(0.4, 9.6)) +
-  theme +
-  annotate("text", x = 0.6, y = 0.75, family = "Myriad Pro", size = 3.6, hjust = 0,
-           label = paste("Pseudo R²:", format(round(pR2(m4)["McFadden"], 3), nsmall = 3), 
-                         "\nΔAIC:", round(AIC(m4) - AIC(m3), 1)))
-
-lag5_p <- lag5_pred %>% 
-  ggplot(aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), linewidth = 0, fill ="#87406f", alpha = 0.5) +
-  geom_line(linewidth = 0.3) +
-  labs(x = "Measles cases 5 years prior", y = NULL) +
-  coord_cartesian(ylim = c(0.15, 0.82), xlim = c(0.4, 9.6)) +
-  theme +
-  annotate("text", x = 0.6, y = 0.75, family = "Myriad Pro", size = 3.6, hjust = 0,
-           label = paste("Pseudo R²:", format(round(pR2(m5)["McFadden"], 3), nsmall = 3), 
-                         "\nΔAIC:", round(AIC(m5) - AIC(m3), 1)))
-
-
-fig <- ggarrange(lag0_p, lag1_p, lag2_p, lag3_p, lag4_p, lag5_p, 
-                 nrow = 2, ncol = 3,
-                 widths = c(1.27, 1, 1, 
-                            1.27, 1, 1))
+fig <- ggarrange(p0, p1, p2, 
+                 NULL, NULL, NULL, 
+                 p3, p4, p5,
+                 nrow = 3, ncol = 3,
+                 widths = c(1.1, 1, 1),
+                 heights = c(1, 0.07, 1)) +
+  theme(plot.margin = margin (1, 1, 1, 1, "mm"))
 
 ggsave(filename = "~/Brazil-measles/figures/nmid_v_lagged_cases.png", 
-       plot = fig, height = 6, width = 7.25, units = "in", bg='white')
+       plot = fig, height = 6, width = 9, units = "in", bg='white')
+
+rm(list = ls())
+
+################################################################################
+##
+##
+## sensitivity test - cancer instead of nmid deaths
+##
+##
+################################################################################
+
+load('~/Brazil-measles/data/analysis_data.RData')
+
+# Deaths by Residence by Year of Death according to Region.
+# ICD-10 Group: 
+# Malignant neoplasms of the lip, 
+# oral cavity and pharynx, 
+# Malignant neoplasms of the digestive organs,
+# Malignant neoplasms of the respiratory tract and intrathoracic organs,
+# Malignant neoplasms of bones and articular cartilage,
+# Melanoma and other malignant neoplasms of the skin, 
+# Malignant neoplasms of mesothelial tissue and soft tissues, 
+# Malignant neoplasms of the breast, 
+# Malignant neoplasms of the female genital organs, 
+# Malignant neoplasms of the male genital organs, 
+# Malignant neoplasms of the urinary tract,
+# Malignant neoplasms of the eyes, brain and other parts of the central nervous system, 
+# Malignant neoplasms of the thyroid and other endocrine glands, 
+# Malignant neoplasms of the maldefined, 
+# secondary and nonspecific sites,
+# Malignant neoplasms of lymphatic,
+# hematopoietic and related tissues, 
+# Malignant neoplasms of multiple independent sites (primary).
+# Period: 2000-2025
+cancer <- read_datasus("~/Brazil-measles/data/mortality/all_cancer_sim_cnv.csv",
+                       line_skip = 5, drop_cols = "total", values_to = "cancer_deaths") 
 
 
-rm(list=ls())
+dat <- df %>% merge(cancer, by = c("muni_code_6", "year")) %>% 
+  mutate(cancer_mx = cancer_deaths / pop_total * 1000)
+
+
+cor.test(dat$mv_incid_total, dat$cancer_mx)      # -0.01037754 
+cor.test(dat$mv_incid_total_lag1, dat$cancer_mx) # -0.01061673
+cor.test(dat$mv_incid_total_lag2, dat$cancer_mx) # -0.008021512
+cor.test(dat$mv_incid_total_lag3, dat$cancer_mx) # -0.00378682
+cor.test(dat$mv_incid_total_lag4, dat$cancer_mx) #  0.002069004
+cor.test(dat$mv_incid_total_lag5, dat$cancer_mx) # -0.007480575
+
+lag0_r <- format(round(cor(dat$mv_incid_total, dat$cancer_mx, method = "pearson"), 3), nsmall = 3)
+lag1_r <- format(round(cor(dat$mv_incid_total_lag1, dat$cancer_mx, method = "pearson"), 3), nsmall = 3)
+lag2_r <- format(round(cor(dat$mv_incid_total_lag2, dat$cancer_mx, method = "pearson"), 3), nsmall = 3)
+lag3_r <- format(round(cor(dat$mv_incid_total_lag3, dat$cancer_mx, method = "pearson"), 3), nsmall = 3)
+lag4_r <- format(round(cor(dat$mv_incid_total_lag4, dat$cancer_mx, method = "pearson"), 3), nsmall = 3)
+lag5_r <- format(round(cor(dat$mv_incid_total_lag5, dat$cancer_mx, method = "pearson"), 3), nsmall = 3)
+
+theme <- theme_bw(base_family = "Myriad Pro", base_size = 12) +
+  theme(text = element_text(color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(color = "black", linewidth = 0.3),
+        axis.ticks.x = element_line(size = 0.3, color = "black"),
+        axis.ticks.y = element_blank(),
+        plot.margin=margin(t = 0, r = 4, b = 0, l = 0, unit = "mm"),
+        legend.background = element_blank())
+
+p0 <- ggplot(dat %>% filter(mv_incid_total > 0 & cancer_mx > 0), 
+             aes(x = mv_incid_total, y = cancer_mx)) +
+  geom_point(shape = 21, color = "gray30", stroke = 0.3, fill = "gray90", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000", y = "Cancer deaths per 1,000") +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10(breaks = c(0.03, 0.1, 0.3, 1, 3)) +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag0_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
+
+
+p1 <- ggplot(dat %>% filter(mv_incid_total_lag1 > 0 & cancer_mx > 0), 
+             aes(x = mv_incid_total_lag1, y = cancer_mx)) +
+  geom_point(shape = 21, color = "gray30", stroke = 0.3, fill = "gray90", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 1 year prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag1_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
+
+p2 <- ggplot(dat %>% filter(mv_incid_total_lag2 > 0 & cancer_mx > 0), 
+             aes(x = mv_incid_total_lag2, y = cancer_mx)) +
+  geom_point(shape = 21, color = "gray30", stroke = 0.3, fill = "gray90", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 2 years prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag2_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
+
+p3 <- ggplot(dat %>% filter(mv_incid_total_lag3 > 0 & cancer_mx > 0), 
+             aes(x = mv_incid_total_lag3, y = cancer_mx)) +
+  geom_point(shape = 21, color = "gray30", stroke = 0.3, fill = "gray90", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 3 years prior", y = "Cancer deaths per 1,000") +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag3_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
+
+p4 <- ggplot(dat %>% filter(mv_incid_total_lag4 > 0 & cancer_mx > 0), 
+             aes(x = mv_incid_total_lag4, y = cancer_mx)) +
+  geom_point(shape = 21, color = "gray30", stroke = 0.3, fill = "gray90", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 4 years prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag4_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
+
+p5 <- ggplot(dat %>% filter(mv_incid_total_lag5 > 0 & cancer_mx > 0), 
+             aes(x = mv_incid_total_lag5, y = cancer_mx)) +
+  geom_point(shape = 21, color = "gray30", stroke = 0.3, fill = "gray90", alpha = 0.5, size = 1) + 
+  geom_smooth(method = "lm", color = "black", fill = "#b6b9ba", alpha = 0.6, linewidth = 0.3) + 
+  labs(x = "Measles cases per 1,000 5 years prior", y = NULL) +
+  scale_x_log10(breaks = c(0.001, 0.01, 0.1, 1, 10),
+                labels = c("0.001", "0.01", "0.1", "1.0", "10.0")) +
+  scale_y_log10() +
+  coord_cartesian(xlim = c(0.00014, 6), ylim = c(0.036, 4)) +
+  annotate("text", x = 0.00015, y = 3.3, family = "Myriad Pro", size = 3.7, hjust = 0,
+           label = paste("Pearson's r:", lag5_r)) + theme + 
+  theme(axis.text.y = element_text(size = 12, color = "black"),
+        axis.title.y = element_text(size = 12, color = "black"),
+        axis.ticks.y = element_line(size = 0.3, color = "black"))
+
+fig <- ggarrange(p0, p1, p2, 
+                 NULL, NULL, NULL, 
+                 p3, p4, p5,
+                 nrow = 3, ncol = 3,
+                 widths = c(1.1, 1, 1),
+                 heights = c(1, 0.07, 1)) +
+  theme(plot.margin = margin (1, 1, 1, 1, "mm"))
+
+ggsave(filename = "~/Brazil-measles/figures/cancer_v_lagged_cases.png", 
+       plot = fig, height = 6, width = 9, units = "in", bg='white')
+
+rm(list = ls())
 
 
 ################################################################################

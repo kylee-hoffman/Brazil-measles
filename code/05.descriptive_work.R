@@ -7,6 +7,24 @@ library(viridis)
 library(scales)
 library("sf")
 library(patchwork)
+library(corrplot)
+
+
+load("~/Brazil-measles/data/analysis_data.RData")
+
+cor_df <- df %>% dplyr::select(`MCV1 coverage` = mcv_d1_cov_tc, `Measles incidence` = mv_incid_total, 
+                               `Non-measles mort. rate` = nm_mx,
+                               `GDP per capita` = gdp_pc, `Clinics per capita` = clinics_pc,
+                               `Poverty rate` = poverty_rate, 
+                               `Literacy rate` = literacy_rate, CBR = cbr, `%Urban` = pct_urban)
+
+cor_matrix <- cor(cor_df)
+
+png(filename = "~/Brazil-measles/figures/correlation_matrix_plot.png", width = 2000, height = 2000, res = 300)
+
+corrplot(cor_matrix, method = "color", tl.col = "black")
+
+dev.off()
 
 ################################################################################
 ##

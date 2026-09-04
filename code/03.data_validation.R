@@ -1,3 +1,7 @@
+library(tidyverse)
+library(janitor)
+library(readxl)
+
 load('~/Brazil-measles/data/muni-year_panel_01-24.RData')
 
 # find missing values
