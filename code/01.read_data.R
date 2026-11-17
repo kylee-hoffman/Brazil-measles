@@ -19,16 +19,21 @@ source("~/Brazil-measles/code/utils.R")
 ## Line: municipality; Column: year; content: resident population
 ##
 ################################################################################
-pop <- read_datasus(file = "~/Brazil-measles/data/pop/total_pop_ibge_cnv.csv", 
+pop <- read_datasus(file = "~/Brazil-measles/data/pop/total_pop.csv", 
                      line_skip = 3, drop_cols = NULL, values_to = "pop_total") %>% 
-  merge(read_datasus(file = "~/Brazil-measles/data/pop/pop_1-9_ibge_cnv.csv",
+  merge(read_datasus(file = "~/Brazil-measles/data/pop/pop_1-9.csv",
                      line_skip = 4, drop_cols = NULL, values_to = "pop_1to9"),
         by = c("muni_code_6", "year")) %>%
-  merge(read_datasus("~/Brazil-measles/data/pop/pop_1-14_ibge_cnv.csv", 
+  merge(read_datasus("~/Brazil-measles/data/pop/pop_1-14.csv", 
                      line_skip = 4, drop_cols = NULL, values_to = "pop_1to14"), 
         by = c("muni_code_6", "year")) %>% 
-  mutate(prop_1to9 = pop_1to9 / pop_total) %>% 
-  dplyr::select(muni_code_6, year, pop_total, prop_1to9)
+  merge(read_datasus("~/Brazil-measles/data/pop/pop_1-19.csv", 
+                     line_skip = 4, drop_cols = NULL, values_to = "pop_1to19"), 
+        by = c("muni_code_6", "year")) %>% 
+  merge(read_datasus("~/Brazil-measles/data/pop/pop_1-29.csv", 
+                     line_skip = 4, drop_cols = NULL, values_to = "pop_1to29"), 
+        by = c("muni_code_6", "year")) %>% 
+  dplyr::select(muni_code_6, year, pop_total, pop_1to9, pop_1to14, pop_1to19, pop_1to29)
 
 
 
@@ -39,16 +44,13 @@ pop <- read_datasus(file = "~/Brazil-measles/data/pop/total_pop_ibge_cnv.csv",
 ## https://tabnet.datasus.gov.br/cgi/deftohtm.exe?sim/cnv/obt10br.def
 # Line: municipality; column: year of death; content: deaths by residence
 ################################################################################
-deaths <- read_datasus('~/Brazil-measles/data/mortality/all_deaths_sim_cnv.csv', 
-                       line_skip = 3, drop_cols = "total", values_to = "all_deaths")
-
-cdr <- merge(deaths, pop, by = c("muni_code_6", "year")) %>%
+cdr <- read_datasus('~/Brazil-measles/data/mortality/all_deaths.csv', 
+                       line_skip = 3, drop_cols = "total", values_to = "all_deaths") %>% 
+  merge(pop, by = c("muni_code_6", "year")) %>%
   mutate(cdr = all_deaths / pop_total * 1000) %>% 
   dplyr::select(muni_code_6, year, cdr)
 
-rm(deaths)
 #setdiff(pop$muni_code_6, cdr$muni_code_6) # none
-
 
 
 ################################################################################
@@ -63,36 +65,25 @@ rm(deaths)
 ## http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sim/cnv/inf10br.def
 ##
 ################################################################################
-births <- read_datasus("~/Brazil-measles/data/births/births_sinasc_cnv.csv", 
-                       line_skip = 3, drop_cols = "total", values_to = "births")
 
-infant_deaths <- read.delim('~/Brazil-measles/data/mortality/infant_deaths_sim_cnv.csv', 
-                            sep = ";", dec = ",", fileEncoding = "Latin1",
-                            skip = 3, nrow = 5598) %>% 
-  filter(!str_detect(Município, "IGNORADO")) %>% 
-  dplyr::select(-Total) %>% 
-  pivot_longer(cols = -"Município",
-               names_to = "year",
-               values_to = "infant_deaths") %>% 
-  mutate(year = as.numeric(substring(year, 2, 5)),
-         infant_deaths = as.numeric(case_when(
-           infant_deaths == "-" ~ "0", # dash indicates 0 deaths
-           TRUE ~ infant_deaths)),
-         muni_code_6 = as.numeric(str_split_fixed(Município, ' ', 2)[, 1])) %>% 
-  dplyr::select(c("muni_code_6", "year", "infant_deaths"))
+cbr <- read_datasus("~/Brazil-measles/data/births/births.csv", 
+                       line_skip = 3, drop_cols = "total", values_to = "births") %>% 
+  merge(pop, by = c("muni_code_6", "year")) %>%
+  mutate(cbr = births / pop_total * 1000)
+
+imr <- read_datasus('~/Brazil-measles/data/mortality/infant_deaths.csv', 
+                               line_skip = 3, drop_cols = "total", values_to = "infant_deaths") %>% 
+  merge(cbr, by = c("muni_code_6", "year")) %>% 
+  mutate(imr = infant_deaths / births * 1000) %>% 
+  dplyr::select(muni_code_6, year, imr)
+
+imr[is.na(imr)] <- 0 # some muni-years have 0 births
+imr[is.infinite(imr$imr), "imr"] <- 0 # some have 0 births and 0 infant deaths
 
 
-cbr <- merge(births, pop, by = c("muni_code_6", "year")) %>%
-  mutate(cbr = births / pop_total * 1000) %>% 
-  dplyr::select(muni_code_6, year, cbr)
+cbr <- cbr %>% dplyr::select(muni_code_6, year, cbr)
 
-imr <- merge(infant_deaths, births, by = c("muni_code_6", "year")) %>% 
-  mutate(imr = infant_deaths / births * 1000)
-
-
-rm(births)
 #setdiff(pop$muni_code_6, cdr$muni_code_6) # none
-
 
 
 ################################################################################
@@ -102,9 +93,9 @@ rm(births)
 ## http://tabnet.datasus.gov.br/cgi/tabcgi.exe?sinanwin/cnv/exantbr.def
 ##
 ################################################################################
-cases <- read_cases("~/Brazil-measles/data/measles_cases/total/cases_01-06_sinanwin_cnv.csv", 
+cases <- read_cases("~/Brazil-measles/data/measles_cases/total/cases_01-06.csv", 
                         4, "total") %>% 
-  merge(read_cases("~/Brazil-measles/data/measles_cases/total/cases_07-25_sinannet_cnv.csv", 
+  merge(read_cases("~/Brazil-measles/data/measles_cases/total/cases_07-25.csv", 
                    4, c("x_1975", "x2001", "x2006", "em_branco_ign", "total")),
         by = "municipio_de_residencia") %>% 
   mutate(x2004 = 0) %>% # no cases in 2004 so no original column
@@ -119,16 +110,44 @@ cases <- read_cases("~/Brazil-measles/data/measles_cases/total/cases_01-06_sinan
 
 ################################################################################
 ##
-## NMID deaths 
+## NMID deaths - total and ages 1-9, 1-19, 1-29
 ##
 ## http://tabnet.datasus.gov.br/cgi/deftohtm.exe?sim/cnv/obt10br.def
 ##
 ################################################################################
-nmid <- read_datasus('~/Brazil-measles/data/mortality/nmid_total_sim_cnv.csv', 
-                     line_skip = 4, drop_cols = "total", values_to = "nm_deaths") %>% 
+nmid <- read_datasus('~/Brazil-measles/data/mortality/nmid_deaths_total.csv', 
+                     line_skip = 4, drop_cols = "total", values_to = "nm_deaths_total") %>% 
   merge(pop, by = c("muni_code_6", "year")) %>% 
-  mutate(nm_mx = nm_deaths / pop_total * 1000) %>% 
-  dplyr::select(muni_code_6, year, nm_deaths, nm_mx)
+  mutate(nm_mx_total = nm_deaths_total / pop_total * 1000) %>% 
+  dplyr::select(muni_code_6, year, nm_deaths_total, nm_mx_total) %>% 
+  merge(
+    read_datasus('~/Brazil-measles/data/mortality/nmid_deaths_1-9.csv', 
+                 line_skip = 5, drop_cols = "total", values_to = "nm_deaths_1to9") %>% 
+      merge(pop, by = c("muni_code_6", "year")) %>% 
+      mutate(nm_mx_1to9 = nm_deaths_1to9 / pop_1to9 * 1000) %>% 
+      dplyr::select(muni_code_6, year, nm_deaths_1to9, nm_mx_1to9),
+    by = c("muni_code_6", "year")) %>% 
+  merge(
+    read_datasus('~/Brazil-measles/data/mortality/nmid_deaths_1-14.csv', 
+                 line_skip = 5, drop_cols = "total", values_to = "nm_deaths_1to14") %>% 
+      merge(pop, by = c("muni_code_6", "year")) %>% 
+      mutate(nm_mx_1to14 = nm_deaths_1to14 / pop_1to14 * 1000) %>% 
+      dplyr::select(muni_code_6, year, nm_deaths_1to14, nm_mx_1to14),
+    by = c("muni_code_6", "year")) %>% 
+  merge(
+    read_datasus('~/Brazil-measles/data/mortality/nmid_deaths_1-19.csv', 
+                 line_skip = 5, drop_cols = "total", values_to = "nm_deaths_1to19") %>% 
+      merge(pop, by = c("muni_code_6", "year")) %>% 
+      mutate(nm_mx_1to19 = nm_deaths_1to19 / pop_1to19 * 1000) %>% 
+      dplyr::select(muni_code_6, year, nm_deaths_1to19, nm_mx_1to19),
+    by = c("muni_code_6", "year")) %>% 
+  merge(
+    read_datasus('~/Brazil-measles/data/mortality/nmid_deaths_1-29.csv', 
+                 line_skip = 5, drop_cols = "total", values_to = "nm_deaths_1to29") %>% 
+      merge(pop, by = c("muni_code_6", "year")) %>% 
+      mutate(nm_mx_1to29 = nm_deaths_1to29 / pop_1to29 * 1000) %>% 
+      dplyr::select(muni_code_6, year, nm_deaths_1to29, nm_mx_1to29),
+    by = c("muni_code_6", "year"))
 
 #setdiff(pop$muni_code_6, nmid$muni_code_6) # none
 
@@ -144,28 +163,35 @@ nmid <- read_datasus('~/Brazil-measles/data/mortality/nmid_total_sim_cnv.csv',
 ## Example: for vaccination coverage against measles, the doses administered (1st dose) of
 ## the triple viral, double viral and monovalent measles vaccines must be added together." 
 ##
+## coverage for 2023-2025:
+## https://infoms.saude.gov.br/extensions/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_
+##   COBERTURA_RESIDENCIA/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA.html#
+##
 ################################################################################
-monovalent <- read_datasus("~/Brazil-measles/data/vaccination/monovalent_cpni.csv",
-                           line_skip = 0, drop_cols = "x_total", values_to = "monovalent_coverage")
 
-mmr1 <- read_datasus("~/Brazil-measles/data/vaccination/mmr1_cpni.csv",
-                     line_skip = 0, drop_cols = "x_total", values_to = "MMR1_coverage")
+coverage_fun <- function() {
+  monovalent <- read_datasus("~/Brazil-measles/data/vaccination/monovalent_cpni.csv",
+                             line_skip = 0, drop_cols = "x_total", values_to = "monovalent_coverage")
+  
+  mmr1 <- read_datasus("~/Brazil-measles/data/vaccination/mmr1_cpni.csv",
+                       line_skip = 0, drop_cols = "x_total", values_to = "MMR1_coverage")
+  
+  mmr_2023 <- read_coverage("~/Brazil-measles/data/vaccination/2023_vaccination.xlsx", year = "2023")
+  mmr_2024 <- read_coverage("~/Brazil-measles/data/vaccination/2024_vaccination.xlsx", year = "2024")
+  mmr_2025 <- read_coverage("~/Brazil-measles/data/vaccination/2025_vaccination.xlsx", year = "2025")
+  
+  
+  coverage <- bind_rows(mmr1, mmr_2023, mmr_2024, mmr_2025) %>%
+    merge(monovalent, by = c("muni_code_6", "year"), all = TRUE) %>% 
+    mutate(mcv_d1_cov = ifelse(is.na(monovalent_coverage), MMR1_coverage, 
+                               MMR1_coverage + monovalent_coverage),
+           mcv_d1_cov_tc = pmin(mcv_d1_cov, 100)) %>% # top coded to 100
+    dplyr::select(-c(MMR1_coverage, monovalent_coverage))
+  
+  return(coverage)
+}
 
-# coverage for 2023-2025
-# https://infoms.saude.gov.br/extensions/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_
-#   COBERTURA_RESIDENCIA/SEIDIGI_DEMAS_VACINACAO_CALENDARIO_NACIONAL_COBERTURA_RESIDENCIA.html#
-mmr_2023 <- read_coverage("~/Brazil-measles/data/vaccination/2023_vaccination.xlsx", year = "2023")
-mmr_2024 <- read_coverage("~/Brazil-measles/data/vaccination/2024_vaccination.xlsx", year = "2024")
-mmr_2025 <- read_coverage("~/Brazil-measles/data/vaccination/2025_vaccination.xlsx", year = "2025")
-
-
-coverage <- bind_rows(mmr1, mmr_2023, mmr_2024, mmr_2025) %>%
-  merge(monovalent, by = c("muni_code_6", "year"), all = TRUE) %>% 
-  mutate(mcv_d1_cov = ifelse(is.na(monovalent_coverage), MMR1_coverage, 
-                             MMR1_coverage + monovalent_coverage),
-         mcv_d1_cov_tc = pmin(mcv_d1_cov, 100)) %>% # top coded to 100
-  dplyr::select(-c(MMR1_coverage, monovalent_coverage))
-
+coverage <- coverage_fun()
 
 
 ################################################################################
@@ -200,6 +226,39 @@ gdp_pc <- bind_rows(read_gdp("~/Brazil-measles/data/GDP_PC/gdp_2002-2009.xlsx"),
 
 ################################################################################
 ##
+## GINI index (2000 and 2010 only)
+##
+## hhttp://tabnet.datasus.gov.br/cgi/ibge/censo/cnv/ginibr.def
+##
+################################################################################
+read_gini <- function() {
+  gini <- read.delim('~/Brazil-measles/data/ginibr.csv', sep = ";", fileEncoding = "Latin1", 
+                     dec = ",", skip = 2, nrows = 5565) %>% 
+    clean_names() %>% 
+    filter(!str_detect(municipio, "IGNORADO|Total|EXTINTO|510183")) %>% # 510183 was est. in 2025
+    mutate(muni_code_6 = str_split_i(municipio, " ", 1),
+           x2000 = na_if(x2000, "..."),
+           x2000 = as.numeric(gsub(",", ".", x2000)))
+  
+  # apply 2000 values to 2000-2009
+  gini00 <- gini %>% dplyr::select(muni_code_6, gini = x2000)
+  
+  gini00_09 <- bind_rows(lapply(2000:2009, function(yr) mutate(gini00, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, gini)
+  
+  # apply 2010 values to 2010-2024
+  gini10 <- gini %>% dplyr::select(muni_code_6, gini = x2010)
+  
+  gini10_24 <- bind_rows(lapply(2010:2024, function(yr) mutate(gini10, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, gini)
+  
+  return(bind_rows(gini00_09, gini10_24))
+}
+
+gini <- read_gini()
+
+################################################################################
+##
 ## Region and state, land area
 ##
 ################################################################################
@@ -207,55 +266,7 @@ geom <- read_sf('~/Brazil-measles/data/geography/municipalities/BR_Municipios_20
   as.data.frame() %>% 
   mutate(muni_code_6 = substring(CD_MUN, 1, 6)) %>% 
   filter(!str_detect(NM_MUN, "Área Operacional") & !str_detect(CD_MUN, "510183")) %>% # water area
-  dplyr::select(state = NM_UF, region = NM_REGIAO, muni_code_6, land_area_km2 = AREA_KM2)
-
-
-################################################################################
-##
-## Literacy rates
-##
-################################################################################
-
-# 2001 - 2009
-lit00 <- read_xlsx('~/Brazil-measles/data/literacy/ibge_literacy_rate_2000.xlsx', 
-                   skip = 5, n_max = 5507) %>% 
-  clean_names() %>% 
-  mutate(muni_code_6 = substr(x1, 1, 6)) %>% 
-  dplyr::select(muni_code_6, literacy_rate = total) %>% 
-  merge(geom %>% dplyr::select(muni_code_6), by = "muni_code_6", all.y = T) # include NA munis
-
-lit01_09 <- bind_rows(lapply(2001:2009, function(yr) mutate(lit00, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, literacy_rate)
-
-
-# 2010 - 2019
-lit10 <- read_xlsx('~/Brazil-measles/data/literacy/ibge_literacy_rate_2010.xlsx', 
-                   skip = 4, n_max = 5565) %>% 
-  clean_names() %>% 
-  mutate(muni_code_6 = substr(x1, 1, 6)) %>% 
-  dplyr::select(muni_code_6, literacy_rate = total) %>% 
-  merge(geom %>% dplyr::select(muni_code_6), by = "muni_code_6", all.y = T)
-
-lit10_19 <- bind_rows(lapply(2010:2019, function(yr) mutate(lit10, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, literacy_rate)
-
-
-# 2020 - 2024
-lit22 <- read_xlsx('~/Brazil-measles/data/literacy/ibge_literacy_rate_2022.xlsx',
-                   skip = 5, n_max = 5570) %>% 
-  clean_names() %>% 
-  mutate(muni_code_6 = substr(x1, 1, 6)) %>% 
-  dplyr::select(muni_code_6, literacy_rate = total)
-
-lit20_24 <- bind_rows(lapply(2020:2024, function(yr) mutate(lit22, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, literacy_rate)
-
-lit <- bind_rows(lit01_09, lit10_19, lit20_24) %>% 
-  mutate(year = as.character(year))
-
-rm(lit00, lit01_09, lit10, lit10_19, lit22, lit20_24)
-
-#is.na(lit$literacy_rate) %>% table() # 617 NA
+  dplyr::select(state = NM_UF, region = NM_REGIAO, muni_code_6, muni = NM_MUN, land_area_km2 = AREA_KM2)
 
 
 
@@ -264,43 +275,48 @@ rm(lit00, lit01_09, lit10, lit10_19, lit22, lit20_24)
 ## poverty rates
 ##
 ################################################################################
-
-# 2001 - 2009 and 2010 - 2019
-pov00_10 <- read.delim('~/Brazil-measles/data/poverty/ibge_poverty_rate_2000_2010.csv',
-                       sep = ";", fileEncoding = "Latin1", dec = ",", skip = 3, nrows = 5597) %>% 
-  clean_names() %>% 
-  dplyr::select(-total) %>%
-  filter(!str_detect(municipio, "IGNORADO|Total|EXTINTO|510183")) %>% # 510183 was est. in 2025
-  mutate(across(c(x2000, x2010), ~ na_if(.x, "...")),
-         across(c(x2000, x2010), ~ as.numeric(gsub(",", ".", .x))),
-         muni_code_6 = str_split_i(municipio, " ", 1))
-
-pov00 <- pov00_10 %>% dplyr::select(muni_code_6, poverty_rate = x2000)
-
-pov01_09 <- bind_rows(lapply(2001:2009, function(yr) mutate(pov00, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, poverty_rate)
-
-pov10 <- pov00_10 %>% dplyr::select(muni_code_6, poverty_rate = x2010)
-
-pov10_19 <- bind_rows(lapply(2010:2019, function(yr) mutate(pov10, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, poverty_rate)
+read_poverty <- function() {
+  # 2001 - 2009 and 2010 - 2019
+  pov00_10 <- read.delim('~/Brazil-measles/data/poverty/ibge_poverty_rate_2000_2010.csv',
+                         sep = ";", fileEncoding = "Latin1", dec = ",", skip = 3, nrows = 5597) %>% 
+    clean_names() %>% 
+    dplyr::select(-total) %>%
+    filter(!str_detect(municipio, "IGNORADO|Total|EXTINTO|510183")) %>% # 510183 was est. in 2025
+    mutate(across(c(x2000, x2010), ~ na_if(.x, "...")),
+           across(c(x2000, x2010), ~ as.numeric(gsub(",", ".", .x))),
+           muni_code_6 = str_split_i(municipio, " ", 1))
   
-# 2020 - 2024
-pov22 <- read.xlsx('~/Brazil-measles/data/poverty/ibge_poverty_rate_2022.xlsx',
-                   sheet = "Tabela", startRow = 6, rows = 6:16716, fillMergedCells = T) %>% 
-  mutate(Total = as.numeric(recode(Total, "-" = "0"))) %>% 
-  group_by(X1) %>% 
-  reframe(muni_code_6 = substr(unique(X1), 1, 6),
-          poverty_rate = sum(Total)) %>% 
-  dplyr::select(muni_code_6, poverty_rate)
+  # apply 2000 values to 2000-2009
+  pov00 <- pov00_10 %>% dplyr::select(muni_code_6, poverty_rate = x2000)
   
-pov20_24 <- bind_rows(lapply(2020:2024, function(yr) mutate(pov22, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, poverty_rate)
+  pov00_09 <- bind_rows(lapply(2000:2009, function(yr) mutate(pov00, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, poverty_rate)
+  
+  # apply 2010 values to 2010-2019
+  pov10 <- pov00_10 %>% dplyr::select(muni_code_6, poverty_rate = x2010)
+  
+  pov10_19 <- bind_rows(lapply(2010:2019, function(yr) mutate(pov10, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, poverty_rate)
+    
+  
+  # 2022 data
+  pov22 <- read.xlsx('~/Brazil-measles/data/poverty/ibge_poverty_rate_2022.xlsx',
+                     sheet = "Tabela", startRow = 6, rows = 6:16716, fillMergedCells = T) %>% 
+    mutate(muni_code_6 = substr(X1, 1, 6),
+           Total = as.numeric(gsub("-", "0", Total))) %>% 
+    group_by(muni_code_6) %>%
+    reframe(poverty_rate = sum(Total)) %>%
+    dplyr::select(muni_code_6, poverty_rate)
+    
+  # apply 2022 data to 2020-2024
+  pov20_24 <- bind_rows(lapply(2020:2024, function(yr) mutate(pov22, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, poverty_rate)
+  
+  return(bind_rows(pov00_09, pov10_19, pov20_24) %>% 
+           mutate(year = as.character(year)))
+}
 
-pov <- bind_rows(pov01_09, pov10_19, pov20_24) %>% 
-  mutate(year = as.character(year))
-
-rm(pov00_10, pov01_09, pov00, pov10, pov10_19, pov22, pov20_24)
+poverty <- read_poverty()
 
 ################################################################################
 ##
@@ -308,39 +324,41 @@ rm(pov00_10, pov01_09, pov00, pov10, pov10_19, pov22, pov20_24)
 ##
 ################################################################################
 
+read_urbanicity <- function() {
+  # 2001 - 2009 and 2010 - 2019
+  urb00_10 <- read.xlsx('~/Brazil-measles/data/urbanity/ibge_pct_urban_2000_2010.xlsx',
+                        sheet = "Tabela", rows = 4:5571, fillMergedCells = T) %>% 
+    clean_names() %>% 
+    filter(!is.na(x1)) %>% 
+    mutate(x2000 = gsub("-", "0", x2000),
+           across(c(x2000, x2010), ~ as.numeric(na_if(.x, "..."))),
+           muni_code_6 = substr(x1, 1, 6)) %>% 
+    merge(geom %>% dplyr::select(muni_code_6), by = "muni_code_6", all.y = T) # include NA munis
+  
+  urb00 <- urb00_10 %>% dplyr::select(muni_code_6, pct_urban = x2000)
+  
+  urb01_09 <- bind_rows(lapply(2001:2009, function(yr) mutate(urb00, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, pct_urban)
+  
+  urb10 <- urb00_10 %>% dplyr::select(muni_code_6, pct_urban = x2010)
+  
+  urb10_19 <- bind_rows(lapply(2010:2019, function(yr) mutate(urb10, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, pct_urban)
+  
+  # 2020 - 2024
+  urb22 <- read.xlsx('~/Brazil-measles/data/urbanity/ibge_pct_urban_2022.xlsx',
+                     sheet = "Tabela", rows = 5:5575, fillMergedCells = T) %>% 
+    mutate(muni_code_6 = substr(X1, 1, 6)) %>% 
+    dplyr::select(muni_code_6, pct_urban = Urbana)
+  
+  urb20_24 <- bind_rows(lapply(2020:2024, function(yr) mutate(urb22, year = yr))) %>% 
+    dplyr::select(muni_code_6, year, pct_urban)
+  
+  return(bind_rows(urb01_09, urb10_19, urb20_24) %>% 
+           mutate(year = as.character(year)))
+}
 
-# 2001 - 2009 and 2010 - 2019
-urb00_10 <- read.xlsx('~/Brazil-measles/data/urbanity/ibge_pct_urban_2000_2010.xlsx',
-                      sheet = "Tabela", rows = 4:5571, fillMergedCells = T) %>% 
-  filter(!is.na(X1)) %>% 
-  mutate(`2000` = recode(`2000`, "-" = "0"),
-         across(c(`2000`, `2010`), ~ as.numeric(na_if(.x, "..."))),
-         muni_code_6 = substr(X1, 1, 6)) %>% 
-  merge(geom %>% dplyr::select(muni_code_6), by = "muni_code_6", all.y = T) # include NA munis
-
-urb00 <- urb00_10 %>% dplyr::select(muni_code_6, pct_urban = `2000`)
-
-urb01_09 <- bind_rows(lapply(2001:2009, function(yr) mutate(urb00, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, pct_urban)
-
-urb10 <- urb00_10 %>% dplyr::select(muni_code_6, pct_urban = `2010`)
-
-urb10_19 <- bind_rows(lapply(2010:2019, function(yr) mutate(urb10, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, pct_urban)
-
-# 2020 - 2024
-urb22 <- read.xlsx('~/Brazil-measles/data/urbanity/ibge_pct_urban_2022.xlsx',
-                   sheet = "Tabela", rows = 5:5575, fillMergedCells = T) %>% 
-  mutate(muni_code_6 = substr(X1, 1, 6)) %>% 
-  dplyr::select(muni_code_6, pct_urban = Urbana)
-
-urb20_24 <- bind_rows(lapply(2020:2024, function(yr) mutate(urb22, year = yr))) %>% 
-  dplyr::select(muni_code_6, year, pct_urban)
-
-urb <- bind_rows(urb01_09, urb10_19, urb20_24) %>% 
-  mutate(year = as.character(year))
-
-rm(urb00_10, urb01_09, urb00, urb10, urb10_19, urb22, urb20_24)
+urban <- read_urbanicity()
 
 
 ################################################################################
@@ -353,23 +371,47 @@ df <- merge(pop, cases, by = c("muni_code_6", "year")) %>%
   merge(nmid, by = c("muni_code_6", "year")) %>% 
   merge(cdr, by = c("muni_code_6", "year")) %>% 
   merge(cbr, by = c("muni_code_6", "year")) %>% 
-  merge(lit, by = c("muni_code_6", "year")) %>% 
-  merge(pov, by = c("muni_code_6", "year")) %>% 
-  merge(urb, by = c("muni_code_6", "year")) %>% 
+  merge(imr, by = c("muni_code_6", "year")) %>% 
+  merge(poverty, by = c("muni_code_6", "year")) %>% 
+  merge(urban, by = c("muni_code_6", "year")) %>% 
   merge(gdp_pc, by = c("muni_code_6", "year"), all.x = T) %>% 
+  merge(gini, by = c("muni_code_6", "year"), all.x = T) %>% 
   merge(clinics, by = c("muni_code_6", "year"), all.x = T) %>% 
   left_join(geom, by = "muni_code_6") %>% 
-  filter(year %in% 2001:2024)
+  filter(year %in% 2001:2023)
 
 
 # check that number of observations match panel structure
-nrow(expand.grid(muni_code_6 = unique(pop$muni_code_6), year = 2001:2024))
-# 133680
+nrow(expand.grid(muni_code_6 = unique(pop$muni_code_6), year = 2001:2023))
+# 128110
 
-df <- df %>% 
-  mutate(clinics_pc = clinics / pop_total * 1000,
+# all cities with international airports
+travel_munis <- geom %>% filter(muni %in% c("Aracaju", 'Belém', 'Belo Horizonte',
+                                            'Boa Vista', 'Brasília', 'Campinas',
+                                            'Campo Grande', 'Cuiabá', 'Curitiba',
+                                            'Florianópolis', 'Fortaleza', 'Foz do Iguaçu',
+                                            'Goiânia', 'João Pessoa', 'Maceió', 'Manaus',
+                                            'Natal', 'Petrolina', 'Porto Alegre', 'Porto Velho',
+                                            'Recife', 'Rio Branco', 'Rio de Janeiro',
+                                            'Salvador', 'São Luís', 'São Paulo',
+                                            'Teresina', 'Uberlândia', 'Vitória')) %>% 
+  filter(!(muni == "Belém" & state != "Pará") &
+           !(muni == "Boa Vista" & state != "Roraima") &
+           !(muni == "Campo Grande" & state != "Mato Grosso do Sul") &
+           !(muni == "Rio Branco" & state != "Acre"))
+  
+# Natal airport opened in 2014
+# Rio Branco airport opened in 2009
+  
+df <- df %>%
+  mutate(travel = ifelse(muni_code_6 %in% travel_munis$muni_code_6, 1, 0),
+         travel = factor(case_when(muni_code_6 == "240810" & as.numeric(as.character(year)) < 2014 ~ 0, # Natal
+                            muni_code_6 == "120040" & as.numeric(as.character(year)) < 2009 ~ 0, # Rio Branco
+                            .default = travel)),
+         clinics_pc = clinics / pop_total * 1000,
          pop_den = pop_total / land_area_km2,
          gdp_pc = ifelse(gdp_pc == -1459.83, 1, gdp_pc), # only one muni-year with gdp_pc <= 0
+         gini = gini * 100,
          region = factor(region),
          muni_code_6 = factor(muni_code_6),
          year = factor(year),
@@ -392,14 +434,71 @@ df <- df %>%
          mcv_d1_cov_tc_lag4 = lag(mcv_d1_cov_tc, 4, order_by = year),
          mcv_d1_cov_tc_lag5 = lag(mcv_d1_cov_tc, 5, order_by = year)) %>% 
   ungroup() %>% 
-  dplyr::select(region, state, muni_code_6, year, nm_deaths, nm_mx, 
+  dplyr::select(region, state, muni_code_6, year, nm_deaths_total, nm_mx_total, 
+                nm_deaths_1to9, nm_mx_1to9, nm_deaths_1to14, nm_mx_1to14, 
+                nm_deaths_1to19, nm_mx_1to19, nm_deaths_1to29, nm_mx_1to29, 
                 mv_cases_total, mv_incid_total, mv_incid_total_lag1, mv_incid_total_lag2, 
                 mv_incid_total_lag3, mv_incid_total_lag4, mv_incid_total_lag5,
-                mcv_d1_cov, mcv_d1_cov_tc, mcv_d1_cov_tc_lag1, mcv_d1_cov_tc_lag2, mcv_d1_cov_tc_lag3, 
-                mcv_d1_cov_tc_lag4, mcv_d1_cov_tc_lag5, cbr, cdr, gdp_pc, 
-                clinics_pc, pop_den, prop_1to9, pop_total, pct_urban, poverty_rate, literacy_rate)
+                mcv_d1_cov, mcv_d1_cov_tc, mcv_d1_cov_tc_lag1, mcv_d1_cov_tc_lag2,
+                mcv_d1_cov_tc_lag3, mcv_d1_cov_tc_lag4, mcv_d1_cov_tc_lag5, 
+                cbr, cdr, imr, gdp_pc, travel, clinics_pc, pop_den, pop_total, 
+                pop_1to9, pop_1to14, pop_1to19, pop_1to29, pct_urban, poverty_rate, gini)
 
-save(df, file = '~/Brazil-measles/data/muni-year_panel_01-24.RData')
+save(df, file = '~/Brazil-measles/data/generated_data/01.muni-year_panel_01-24.RData')
 
 rm(list=ls())
 
+
+
+
+
+################################################################################
+##
+## data validation
+##
+################################################################################
+load('~/Brazil-measles/data/generated_data/01.muni-year_panel_01-24.RData')
+
+# find missing values
+# colnames(df)[colSums(is.na(df)) > 0]
+# [1] "amnesia_prev_d1"     "amnesia_prev_d2"     "amnesia_prev_d3"     "mcv_d1_cov_lag2"     "mcv_d1_cov_tc_lag2" 
+# [6] "gdp_pc"              "clinics_pc"          "pct_urban"           "poverty_rate"        "literacy_rate"      
+# [11] "susceptible_pop_u10"
+
+# unique(df$muni_code_6[is.na(df$poverty_rate)])
+# 150475 220095 220672 220779 240615 270375 290327 291955 320225 330285 421265 
+# 422000 430003 430047 430107 430222 430223 430258 430461 430462 430465 430583 
+# 430593 430613 430843 431065 431087 431123 431217 431346 431413 431417 431446 
+# 431454 431531 431595 431673 431697 431861 431936 432146 432377 500390 500627 
+# 510185 510325 510336 510343 510452 510454 510617 510619 510631 510757 510774
+# 510776 510779 510788 510835 520485 520815 521015 521225
+
+
+# municipalities that have existed since at least 2000
+census00_munis <- read_xlsx('~/Brazil-measles/data/literacy/ibge_literacy_rate_2000.xlsx', 
+                            skip = 5, n_max = 5507) %>% 
+  clean_names() %>% 
+  mutate(muni_code_6 = substr(x1, 1, 6)) %>% 
+  dplyr::select(muni = x2, muni_code_6)
+
+# only include those munis
+# only include years with all data
+df_00census_06_23 <- df %>% 
+  filter(muni_code_6 %in% census00_munis$muni_code_6 & as.numeric(as.character(year)) %in% 2006:2023)
+
+# colnames(df_00census_06_23)[colSums(is.na(df_00census_06_23)) > 0]
+# susceptible_pop_u10
+# only missing for muni 221038 2006-2009 (missing vaccination data from 1990s)
+
+# we restrict analyses to municipalities that have existed since at least 2000.
+df <- df_00census_06_23
+
+anyNA(df)
+
+save(df, file = '~/Brazil-measles/data/generated_data/02.analysis_data.RData')
+
+# keep all years for descriptive plots
+plot_df <- df %>% 
+  filter(muni_code_6 %in% census00_munis$muni_code_6)
+
+save(plot_df, file = '~/Brazil-measles/data/generated_data/03.plotting_data.RData')
